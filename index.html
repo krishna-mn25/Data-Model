@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Platform Domain Model — Migration Reference</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:920px;margin:0 auto;padding:20px 16px;color:#1e1e1e}
+h1{font-size:22px;font-weight:800}.sub{font-size:14px;color:#666;margin-top:4px}
+.tabs{display:flex;gap:4px;margin:20px 0 16px;border-bottom:2px solid #e5e7eb}
+.tab{padding:8px 16px;font-size:13px;font-weight:500;background:none;border:none;border-bottom:2px solid transparent;color:#666;cursor:pointer;margin-bottom:-2px}
+.tab.on{font-weight:700;border-color:#4a9eed;color:#4a9eed}
+.ctrls{display:flex;gap:8px;margin-bottom:12px}
+.ctrls button{font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer}
+.ctrls button:hover{background:#f5f5f5}
+.zh{padding:12px 16px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.zh:hover{filter:brightness(.97)}
+.zt{font-weight:700;font-size:15px}.zd{font-size:12px;color:#666;margin-top:2px}
+.zc{margin-left:auto;color:#fff;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700}
+.zb{padding-left:8px;margin-bottom:16px}
+.ec{border-radius:8px;margin-bottom:10px;background:#fff;overflow:hidden}
+.eh{padding:12px 16px;cursor:pointer;display:flex;align-items:flex-start;gap:10px}
+.en{font-weight:700;font-size:15px}.ed{font-size:13px;color:#555;margin-top:2px}
+.eb{padding:0 16px 16px 42px}
+.sl{font-size:12px;font-weight:700;text-transform:uppercase;margin-bottom:6px;letter-spacing:.5px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px}
+td{padding:5px 10px 5px 0;border-bottom:1px solid #f0f0f0}
+td:first-child{font-weight:600;color:#333;white-space:nowrap;vertical-align:top;width:25%}
+td:last-child{color:#555}
+.rl{margin:0 0 12px 18px;font-size:13px;color:#555;list-style:disc}.rl li{margin-bottom:3px}
+.mn{background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;font-size:13px;color:#92400e}
+.pn{display:flex;gap:12px;margin-bottom:16px;align-items:flex-start}
+.pc{background:#4a9eed;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.pb{flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px}
+.pl{font-weight:700;font-size:14px;margin-bottom:4px}
+.pe{font-size:13px;color:#555;font-family:monospace;margin-bottom:6px}
+.pd{font-size:12px;color:#777}
+.cb{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;margin-top:16px}
+.ct{font-weight:700;font-size:13px;color:#92400e;margin-bottom:4px}
+.cb ul{font-size:13px;color:#92400e;padding-left:18px}.cb li{margin-bottom:4px}
+.us{margin-bottom:16px}.ut{font-weight:700;font-size:14px;margin-bottom:8px}
+.uc{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;font-size:13px}
+.ub{width:18px;height:18px;border:2px solid #d1d5db;border-radius:4px;flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none}
+.ub.ck{background:#f0fdf4;border-color:#22c55e;color:#22c55e;font-size:11px}
+.info{font-size:13px;color:#666;margin-bottom:16px}
+.chv{display:inline-block;width:0;height:0;border:5px solid transparent;border-left:6px solid currentColor;transition:transform .15s;margin-top:4px;flex-shrink:0}
+.chv.op{transform:rotate(90deg)}
+.hid{display:none}
+</style>
+</head>
+<body>
+<h1>Platform Domain Model</h1>
+<p class="sub">Data architecture reference for migration planning & UAT design</p>
+<div class="tabs" id="tabs"></div>
+<div id="model"></div><div id="order" class="hid"></div><div id="uat" class="hid"></div>
+<script>
+const Z=[
+{n:"Account Hierarchy",c:"#06b6d4",b:"#ecfeff",d:"Account is the root entity. Everything in the system belongs to an Account. Migrate this first — all downstream entities depend on it.",e:[
+{n:"Account",d:"Top-level customer organization. The root of everything — every other entity traces back here.",a:[["Identity","Name, Custom ID, Test flag, Locale"],["Billing Defaults","Default currency, Default dunning process, Default legal entity"],["Addresses","Links to Billing Address and Shipping Address (created as part of Account setup)"],["Communication","CC email list"],["Status","Active/Inactive status"],["Extensibility","Custom fields (key-value)"]],r:["Owns Contacts, Addresses, Payment Methods, Bill Groups, Quotes, Contracts, Invoices, Payments, Credits"],m:"Root entity — migrate first. Address and Legal Entity are set up as part of Account creation. All downstream entities depend on Account ID."},
+{n:"Contact",d:"Individual person within an Account. Used for billing, shipping, e-signing.",a:[["Identity","Full name, Email, Phone, Title, Custom ID"],["Roles","Is primary, Is e-signer, Default e-signer, Internal flag"],["Links","Belongs to Account, Links to Address"],["Status","Active/Inactive"],["Extensibility","Custom fields"]],r:["Belongs to one Account","Links to one Address","Referenced by Quotes, Invoices, Bill Groups, Credit Notes as billing/shipping contact"],m:"Migrate as part of Account setup. Contact references appear as point-in-time snapshots on Quotes and Invoices — denormalized copies, not live references."},
+{n:"Address",d:"Physical address. Shared across billing and shipping contexts.",a:[["Location","Line 1, Line 2, City, State, Postal code, Country"],["Metadata","Description label"]],r:["Referenced by Accounts, Contacts, Bill Groups, Quotes, Invoices, Credit Notes"],m:"Set up alongside Account. Addresses are reused — deduplicate on import."},
+{n:"Legal Entity",d:"Your company's legal entities used on invoices, quotes, and contracts.",a:[["Identity","Name, Custom ID, Default entity flag"],["Address","Line 1, Line 2, City, State, Postal code, Country"],["Branding","Logo reference"]],r:["Referenced by Accounts (as default), Bill Groups, Quotes, Invoices"],m:"Small reference table. Set up alongside Account configuration."},
+{n:"Payment Method",d:"A stored payment instrument on an Account — credit card, ACH, etc.",a:[["Identity","Name, Custom ID, Description, Type, Title"],["Card Details","Card type, Last four, Expiration, Tokenized number, CVC/Address/Postal validation"],["Bank Details","Bank name, Account number, Account type, Routing number, SWIFT code"],["Contact Info","Full name, Email, Phone"],["Address","Line 1, Line 2, City, State, Country"],["Gateway","Payment gateway ID, Gateway customer ID, Gateway token, External ID"],["Config","Default flag, One-time flag, Test flag, Status"]],r:["Belongs to one Account","Referenced by Bill Groups and Payments"],m:"Sensitive data — tokenized card/bank details may require gateway-level migration. Coordinate with payment processor."}
+]},
+{n:"System Access & Ownership",c:"#757575",b:"#f5f5f5",d:"Users and Teams are system-level entities — not part of the Account data model. They control platform access, record ownership, and approval workflows.",e:[
+{n:"Users",d:"Internal platform users. Referenced as owners on Quotes, Contracts, and Opportunities.",a:[["Identity","Name, Email, Company"]],r:["Own Contracts, Quotes, Opportunities","Belong to Teams"],m:"Migrate before Quotes/Contracts (owner references). System users, not customer contacts."},
+{n:"Teams",d:"Groups of users. Used for approval workflow assignment.",a:[["Identity","Team name, Type, Locked flag"],["Ownership","Owner (user)"],["Membership","User-to-Team mapping"]],r:["Contain Users (many-to-many)","Assigned as approvers on Quote Approvals"],m:"Migrate after Users. Needed for approval workflows."}
+]},
+{n:"Product Catalog",c:"#8b5cf6",b:"#f5f3ff",d:"Starts with Products (product type includes usage-based), then bundled into Offerings, priced through Rates containing Price configurations.",e:[
+{n:"Product",d:"Starting point of the catalog. Product type (recurring, one-time, usage, etc.) drives billing behavior.",a:[["Identity","Name, SKU, Custom ID, Description, Finance ID"],["Classification","Product type (recurring, one-time, usage, etc.), Recognition method"],["Tax","Tax exempt flag, Tax item code"],["Special Configs","Minimum commit config, Prepaid credit config"],["Status","Active/Inactive, Locked"],["Extensibility","Custom fields"]],r:["Bundled into Offerings","Priced through Rates → Prices","Usage-type products link to Usage Types","Referenced by Quote Items, Subscription Items, Invoice Items, Credits"],m:"Migrate first in catalog. Product type drives billing behavior — usage-type products need Usage Types linked after."},
+{n:"Usage Type",d:"Unit of measure for usage-based products. Only relevant when Product type is 'usage'.",a:[["Identity","Name, Plural name, Description"],["Config","Unit name, Decimal places, Status"]],r:["Mapped to Products (many-to-many)","Only applies to usage-type Products"],m:"Migrate alongside or after Products. Only needed for usage-type products."},
+{n:"Offering",d:"A bundle of Products sold as a package with display order and mandatory/optional flags.",a:[["Identity","Name, Custom ID, Description, Finance ID"],["Type","Offering type classification"],["Availability","Start date, End date, Status, Locked flag"],["Extensibility","Custom fields"]],r:["Contains Products (with position & mandatory flag)","Has many Rates"],m:"Migrate after Products. Preserve display order and mandatory flags."},
+{n:"Rate",d:"Pricing configuration for an Offering — billing frequency, currency, and Price tiers.",a:[["Identity","Name, Custom ID, Description, Internal description"],["Pricing Config","Currency, Billing frequency, Subscription timing"],["Availability","Start date, End date, Status, Locked, Quotable flag, Channels"],["Account-Specific","Account-specific rate flag, Parent rate ref, Account link"],["Special Configs","Min commit config, Percent-of-total config, Usage billing frequency"],["Options","Tier price inclusive flag, Options JSON"]],r:["Belongs to one Offering","Has many Prices (tiered)","Can have parent Rate (account-specific overrides)","Referenced by Subscriptions, Quote Offerings, Invoice Items"],m:"Account-specific rates link to both a parent rate AND a specific account. Critical for pricing integrity."},
+{n:"Price",d:"Specific price point within a Rate — actual amounts and tiered pricing configured here.",a:[["Pricing","Amount, Price model, Description"],["Tiers","Tier from (lower bound), Tier to (upper bound)"],["Links","Belongs to Product, Belongs to Rate"]],r:["Belongs to one Rate","Belongs to one Product"],m:"Migrate after Rates and Products. Tier boundaries define volume pricing."}
+]},
+{n:"Sales & Quoting",c:"#4a9eed",b:"#eff6ff",d:"Quote is the core entity. Opportunity is a CRM connector (SFDC Opportunity / HubSpot Deal) — a placeholder for CRM integration, not a standalone workflow.",e:[
+{n:"Opportunity",d:"CRM integration object — maps to SFDC Opportunity or HubSpot Deal. Placeholder/connector, not a core workflow object.",a:[["Identity","Name, Custom ID"],["Links","Account, Owner (user), Primary quote"]],r:["Belongs to one Account","Has a primary Quote","Maps to external CRM (SFDC, HubSpot, etc.)"],m:"Lightweight connector. Only migrate if CRM integration is in scope."},
+{n:"Quote",d:"Central sales document. Heaviest entity — carries denormalized snapshots of contacts, addresses, and legal entities.",a:[["Identity","Custom ID, Description, Type (new/amendment/renewal), Status"],["Financials","Amount, Amount without tax/discount, Discount, Credit, Currency"],["Revenue Metrics","ARR, MRR, Incremental ARR/MRR, Previous ARR/MRR"],["Contract Terms","Start/end dates, Length, End action, Auto-renew, Renewal term/notice"],["Billing Config","Net terms, Address source, Start date source"],["Billing Address Snapshot","Full address fields"],["Shipping Address Snapshot","Full address fields"],["Billing Contact Snapshot","Full name, Email, Phone, Title, Address, Snapshot timestamp"],["Primary Contact Snapshot","Full name, Email, Phone, Title, Address, Snapshot timestamp"],["Legal Entity Snapshot","Name, Full address, Logo ref, Snapshot timestamp"],["Document","Document URL/location, Signed doc ref, SOW ref, Contract terms text"],["E-Sign","Envelope ID, Requires e-sign, Signing order"],["Display Options","Show pricing/frequency/schedule/credits/discount/descriptions/proration"],["Workflow","Accepted at, Sent, Declined, Processed, Expiration, Cancellation reason"],["Approval","Submitted at, Granted at, Collaboration access"],["Lineage","Previous quote, Original quote, Contract (amendments), Opportunity (CRM)"],["Links","Account, Bill Group, Legal Entity, Owner, Contacts, Addresses"],["Other","PO number, VAT, Order ID, Migrated flag, Validations JSON"],["Extensibility","Custom fields"]],r:["Belongs to Account","Can link to Opportunity (CRM)","Contains Quote Offerings → Quote Items","Has Approvals","Can reference Contract (amendments)","Creates Contract when accepted","Lineage chain: previous → original"],m:"Most complex entity. Point-in-time snapshots are denormalized copies. Quote type changes field meaning. Lineage must be migrated in order."},
+{n:"Quote Offering",d:"An Offering configured within a Quote — pricing, discounts, schedule.",a:[["Identity","Offering name, Description, Position"],["Financials","Amount, Discount, Credit, Debit"],["Revenue Metrics","ARR, MRR, Incremental ARR/MRR"],["Proration","Credit/Debit proration multipliers"],["Schedule","Effective date, End date, Billing frequency, Subscription timing"],["Rate Selection","Rate ref, Rate name/description, Previous rate, Account-specific flag"],["Lineage","Previous/Parent Quote Offering, Previous amount"],["Links","Quote, Offering (catalog), Subscription (amendments), Subscription Change"]],r:["Belongs to one Quote","References Offering + Rate from catalog","Contains Quote Items","Can link to Subscription (amendments)"],m:"Migrate after Quotes, Offerings, Rates. Subscription links matter for amendments."},
+{n:"Quote Item",d:"Single product line within a Quote Offering.",a:[["Identity","Product name/description/type, Custom ID"],["Quantity & Price","Quantity, Unit price, Unit price after discount"],["Financials","Amount, Discount, Credit, Debit, Contract amount"],["Revenue Metrics","ARR, MRR, Incremental ARR/MRR"],["Proration","Credit/Debit proration multipliers"],["Custom Discount","Discount ID, Name, Description, Type, Amount/percent"],["Amendment","Status, Previous item/quantity/amount/discount"],["Links","Product (catalog), Quote Offering, Subscription Item (amendments)"]],r:["Belongs to one Quote Offering","References one Product","Can link to Subscription Item","Can reference previous Quote Item"],m:"Amendment items carry previous values for delta calculation."},
+{n:"Quote Approval",d:"Approval step within a quote's workflow.",a:[["Workflow","Status, Rank, Mandatory flag, Skipped flag"],["Decision","Approval timestamp, Decline reason"],["Assignee","User, Team, Rule ID"]],r:["Belongs to one Quote","Assigned to User or Team"],m:"Order matters (rank field). Only migrate if preserving approval history."},
+{n:"Note",d:"Free-text notes on Accounts or Quotes.",a:[["Content","Subject, Note body, Status"],["Links","Account, Quote"]],r:["Belongs to Account and/or Quote"],m:"Simple entity. Migrate after Accounts and Quotes."}
+]},
+{n:"Contracting",c:"#8b5cf6",b:"#faf5ff",d:"Quote acceptance creates a Contract. Contracts activate Subscriptions and generate Billing Schedules.",e:[
+{n:"Contract",d:"Active agreement from an accepted Quote.",a:[["Terms","Start/end date, End action, Renewal term/notice, Renewed flag"],["Financials","Total value, Currency"],["Status","Active/Expired/Cancelled"],["Links","Account, Bill Group, Quote (source), Owner"],["Lineage","Previous contract (renewals)"]],r:["Belongs to Account","Created from Quote","Has Bill Group","Activates Subscriptions","Chains to previous Contract"],m:"Contract lineage (previous_contract) must be migrated in sequence."},
+{n:"Billing Schedule",d:"Projected billing dates and amounts from a Contract.",a:[["Schedule","Bill date, Amount, Currency, Net terms"],["Links","Account, Bill Group, Contract, Quote"]],r:["Belongs to Contract, Account, Bill Group, Quote"],m:"Generated data — may be regenerated post-migration."}
+]},
+{n:"Subscription Management",c:"#22c55e",b:"#f0fdf4",d:"Active subscriptions, line items, and change history. MRR tracked here — key UAT metric.",e:[
+{n:"Subscription",d:"Active subscription from Contract activation.",a:[["Billing","Billing status, MRR, Next bill date, First paid date"],["Periods","Period start/end, Usage period start/end"],["Provisioning","Provisioning status"],["Links","Bill Group, Offering (catalog), Rate (catalog), Quote Offering"],["Identity","Custom ID, Description"]],r:["Belongs to Bill Group","Based on Offering + Rate","Has Subscription Items and Changes"],m:"MRR is a key metric to validate in UAT."},
+{n:"Subscription Item",d:"A product within a Subscription.",a:[["Content","Description, Units/quantity"],["Links","Subscription, Product (catalog), Quote Item"]],r:["Belongs to one Subscription","References Product and Quote Item"],m:"Units must match Quote Item quantity."},
+{n:"Subscription Change",d:"Pending or historical change (upgrade, downgrade, cancellation).",a:[["Change","Change type, Effective date, Status, Billing status"],["Behavior","Invoice flag, Prorate flag"],["Links","Subscription, Quote Offering, Rate"]],r:["Belongs to one Subscription"],m:"Active/pending changes affect next billing cycle."}
+]},
+{n:"Billing & Invoicing",c:"#f59e0b",b:"#fffbeb",d:"Bill Groups aggregate subscriptions. Invoices contain denormalized snapshots of contacts, addresses, and legal entities at creation time.",e:[
+{n:"Bill Group",d:"Groups subscriptions for consolidated billing. Controls invoice generation.",a:[["Identity","Name, Custom ID, Currency"],["Invoice Schedule","Bill day, Frequency, Next/Previous invoice date, Delay"],["Invoice Behavior","Creation strategy, Auto-email, Auto-collection, Accounting date calc"],["Billing Address","Address source, Billing/Shipping address refs"],["Contacts","Contact ref, Shipping contact, CC emails"],["Dunning","Process, Status, Start date, Step, Next step date"],["Payment","Default gateway, Payment method ref"],["Terms","Net terms, PO number, VAT, Registration, Renewal date policy"],["Status","Status, Error status"],["Links","Account, Legal Entity, Latest Invoice, Original Quote"],["Extensibility","Custom fields"]],r:["Belongs to Account","Has Subscriptions","Produces Invoices","Links to Payment Method, Legal Entity, Contacts"],m:"Dunning state is time-sensitive — validate post-migration."},
+{n:"Invoice",d:"Billing document with denormalized snapshots — do NOT reconstruct from current data.",a:[["Identity","Invoice number, Type, Currency, Status, Migrated flag"],["Financials","Amount, Tax, Discount, Amount due/paid/credited/written off"],["Dates","Bill/Due/Start/End date, Accounting date, Paid date, Usage period"],["Billing Address Snapshot","Full address fields + ID ref"],["Shipping Address Snapshot","Full address fields + ID ref"],["Billing Contact Snapshot","Full name, Email, Phone, Title, Address, Timestamp"],["Legal Entity Snapshot","Name, Address, Logo ref, Timestamp"],["Payment","Payment instruction JSON, Net terms, Collection attempts"],["Tax","Calculation status, Error, Committed flag"],["Credit Rebill","Source/Target invoice ref, Timestamp"],["Links","Account, Bill Group, Contract, Contact, Legal Entity, Quotes, Previous Invoice"],["Extensibility","Custom fields"]],r:["Belongs to Account and Bill Group","Has Invoice Items","Receives Payments","Can have Credit Notes","Has lineage (previous, credit rebill)"],m:"Balance rule: amount = amount_paid + amount_credited + amount_due + amount_written_off. Snapshots are denormalized."},
+{n:"Invoice Item",d:"Line item linking billing back to catalog and subscription.",a:[["Identity","Line number, Description, Is subscription flag"],["Product Info","Product/Offering name, type, description"],["Financials","Amount, Tax, Discount, Amount credited"],["Quantity & Price","Quantity, Proration multiplier, Price model"],["Period","Start/end date"],["Min Commit","Additional billed amount, Available amount"],["Links","Invoice, Product, Offering, Rate, Subscription, Quote Item"]],r:["Belongs to Invoice","References catalog and subscription entities"],m:"Proration multiplier is critical for pro-rated charges."}
+]},
+{n:"Payments & Adjustments",c:"#ef4444",b:"#fef2f2",d:"Payments, credits, credit notes, refunds, and the polymorphic ledger tying money movement to invoices.",e:[
+{n:"Payment",d:"Payment transaction against invoices.",a:[["Identity","Reference number, Description, Type, Status"],["Financials","Amount, Currency"],["Dates","Payment/Settled/Refund/Void date"],["Gateway","Gateway ID, Reference, Message"],["Links","Account, Payment Method"]],r:["Belongs to Account","Uses Payment Method","Applied via Transactables","Can have Refunds"],m:"Status lifecycle: pending → settled (or voided/refunded)."},
+{n:"Payment Gateway Account",d:"Account-to-gateway mapping.",a:[["Gateway","Type, Account ID, Customer ID, Payment gateway ID"],["Links","Account"]],r:["Belongs to Account"],m:"May need gateway API recreation rather than direct migration."},
+{n:"Refund",d:"Refund against a Payment.",a:[["Identity","Reference, Description, Status, Currency"],["Financials","Amount"],["Gateway","Reference, Error code/message"],["Links","Payment"]],r:["Belongs to one Payment"],m:"Status must align with gateway state."},
+{n:"Credit",d:"Credit balance for application to invoices.",a:[["Identity","Name, Type, Reason, Status, Currency"],["Financials","Amount, Applied, Remaining, Refundable flag"],["Schedule","Expiration date"],["Links","Account, Bill Group, Credit Note, Prepaid refs"],["Extensibility","Custom fields"]],r:["Belongs to Account and Bill Group","Can originate from Credit Note","Applied via Transactables"],m:"amount_remaining must equal amount - amount_applied."},
+{n:"Credit Note",d:"Credit note against an Invoice with line-item adjustments.",a:[["Identity","Type, Status, Description, Currency"],["Financials","Amount, Amount without tax, Tax, Refundable flag"],["Address Snapshots","Billing + Shipping address fields"],["Tax","Calculation status, Error"],["Links","Invoice, Credit"],["Extensibility","Custom fields"]],r:["Against one Invoice","Creates one Credit","Has Credit Note Items"],m:"Contains address snapshots like Invoices. Migrate after Invoices."},
+{n:"Credit Note Item",d:"Line item within a Credit Note.",a:[["Financials","Amount, Tax, Quantity, Proration multiplier"],["Period","Start/end date"],["Links","Credit Note, Invoice Item"]],r:["Belongs to Credit Note","References Invoice Item"],m:"Must reference a valid Invoice Item."},
+{n:"Transactable & Application Transaction",d:"Polymorphic ledger: how payments/credits are applied to invoices/refunds.",a:[["Transactable","Amount, Applied amount, Fully applied date, Source (payment/CN/credit), Source type"],["Application","Amount, Target (invoice/refund), Target type, Type"]],r:["Sources: Payment, Credit Note, or Credit","Targets: Invoice or Refund"],m:"Money-movement ledger. Polymorphic references (type + ID). Must reconcile."}
+]}
+];
+const P=[
+{n:1,l:"Account Foundation",e:"Account (with Address, Legal Entity, Contact, Payment Method as part of account creation)",d:"Account is the root. Address, Legal Entity, Contact configured as part of setup."},
+{n:2,l:"System Access",e:"Users → Teams → Team Membership",d:"System-level, not Account model. Needed for owner refs and approvals."},
+{n:3,l:"Product Catalog",e:"Product → Usage Type (usage products) → Offering (+Products) → Rate → Price",d:"Product type drives behavior. Usage Types only for usage products."},
+{n:4,l:"Sales (lineage order)",e:"Opportunity (CRM) → Quote → Quote Offering → Quote Item → Approval → Note",d:"Opportunity is CRM placeholder. Quotes with lineage imported oldest-first."},
+{n:5,l:"Contracts & Subscriptions",e:"Bill Group → Contract → Billing Schedule → Subscription → Items → Changes",d:"Bill Group before Contract. Renewal chains imported in sequence."},
+{n:6,l:"Billing Output",e:"Invoice → Invoice Items → Credit Note → CN Items → Credit",d:"Invoice snapshots are denormalized. Do not reconstruct from current data."},
+{n:7,l:"Payments & Ledger",e:"Payment → Refund → Transactable → Application Transaction",d:"Polymorphic transactables. Applied amounts must reconcile end-to-end."}
+];
+const K=["Account is the root — Address, Legal Entity, Contact, Payment Method set up as part of Account creation","Product Catalog: Product (type drives behavior) → Offerings → Rates → Prices","Opportunity is a CRM connector (SFDC/HubSpot) — only migrate if CRM integration in scope","Quotes with lineage (previous/original) must be imported oldest-first","Contracts with renewal chains must be imported in sequence","Invoices with credit rebill refs need both source and target to exist","Transactables are polymorphic — source_type determines which entity source_id references","Bill Group depends on Payment Method → Account — all must exist before Contract"];
+const U=[
+{a:"Account & Foundation",c:["Account count matches source","Contact-to-Account associations preserved","Address deduplication — no orphans or duplicates","Legal Entity defaults correctly assigned","Payment Method tokens valid with gateway","User ownership refs resolve on Quotes, Contracts, Opportunities"]},
+{a:"Product Catalog",c:["Product count and types match","Product types correctly set (recurring, one-time, usage)","Usage Types linked only to usage-type Products","Offering → Product mappings preserved (position, mandatory)","Rate → Price tiers correctly ordered","Account-specific rates link to parent rate AND account"]},
+{a:"Quotes & Sales",c:["CRM Opportunity links validated (if in scope)","Quote lineage chains intact","Quote financial rollup: Items = Offering = Quote amount","ARR/MRR preserved (not recalculated)","Quote type (new/amendment/renewal) correct","Contact/Address snapshots match source (denormalized, not live)","Amendment quotes reference correct Contract","Approval state preserved (status, rank, assignees)"]},
+{a:"Contracts & Subscriptions",c:["Contract renewal chains intact","Contract total_value matches","Subscription MRR matches (key metric)","Billing status and next_bill_date correct","Subscription Items match Quote Items","Pending Changes preserved with effective dates"]},
+{a:"Billing",c:["Bill Group frequency and next_invoice_date correct","Dunning state preserved","Invoice balance: amt = paid + due + credited + written_off","Invoice snapshots match source (not current entity state)","Invoice Items ref correct Subscriptions/Products","Invoice lineage (previous, credit rebill) intact"]},
+{a:"Payments & Adjustments",c:["Payment amounts and statuses match","Credit balances: remaining = amount - applied","Credit Note → Invoice refs valid","Refund → Payment refs valid","Transactable applied_amount reconciles","E2E: 10 accounts — invoiced = paid + credited + outstanding"]}
+];
+
+let tab='model',zones=new Set(Z.map(z=>z.n)),entities=new Set();
+
+function $(s){return document.querySelector(s)}
+function $$(s){return document.querySelectorAll(s)}
+
+function svg(o){return o?'<span class="chv op" style="color:'+('c')+'">'+'</span>':'<span class="chv">'+'</span>'}
+
+function showTab(t){
+  tab=t;
+  $$('.tab').forEach(el=>el.classList.toggle('on',el.dataset.t===t));
+  ['model','order','uat'].forEach(id=>{
+    $('#'+id).classList.toggle('hid',id!==t);
+  });
+}
+
+function toggleZone(n){zones.has(n)?zones.delete(n):zones.add(n);render()}
+function toggleEntity(k){entities.has(k)?entities.delete(k):entities.add(k);render()}
+function expandAll(){zones=new Set(Z.map(z=>z.n));render()}
+function collapseAll(){zones.clear();entities.clear();render()}
+
+function render(){
+  let h='<div class="ctrls"><button onclick="expandAll()">Expand All</button><button onclick="collapseAll()">Collapse All</button></div>';
+  Z.forEach(z=>{
+    const open=zones.has(z.n);
+    h+=`<div class="zone"><div class="zh" style="background:${z.b};border:1px solid ${z.c}33" onclick="toggleZone('${z.n.replace(/'/g,"\\'")}')">
+    <span class="chv${open?' op':''}" style="color:${z.c}"></span>
+    <div><div class="zt" style="color:${z.c}">${z.n}</div><div class="zd">${z.d}</div></div>
+    <span class="zc" style="background:${z.c}">${z.e.length}</span></div>`;
+    if(open){
+      h+='<div class="zb">';
+      z.e.forEach(e=>{
+        const k=z.n+'/'+e.n, eo=entities.has(k);
+        h+=`<div class="ec" style="border:1px solid ${z.c}33"><div class="eh" onclick="toggleEntity('${k.replace(/'/g,"\\'")}')">
+        <span class="chv${eo?' op':''}" style="color:${z.c}"></span>
+        <div><div class="en">${e.n}</div><div class="ed">${e.d}</div></div></div>`;
+        if(eo){
+          h+=`<div class="eb"><div class="sl" style="color:${z.c}">Data Attributes</div><table>`;
+          e.a.forEach(a=>h+=`<tr><td>${a[0]}</td><td>${a[1]}</td></tr>`);
+          h+=`</table><div class="sl" style="color:${z.c}">Relationships</div><ul class="rl">`;
+          e.r.forEach(r=>h+=`<li>${r}</li>`);
+          h+=`</ul>`;
+          if(e.m)h+=`<div class="mn"><strong>Migration Notes:</strong> ${e.m}</div>`;
+          h+=`</div>`;
+        }
+        h+=`</div>`;
+      });
+      h+='</div>';
+    }
+    h+=`</div>`;
+  });
+  $('#model').innerHTML=h;
+}
+
+function renderOrder(){
+  let h='<p class="info">Entities must be migrated in this order due to dependencies. Each phase assumes prior phases complete.</p>';
+  P.forEach(p=>{
+    h+=`<div class="pn"><div class="pc">${p.n}</div><div class="pb"><div class="pl">${p.l}</div><div class="pe">${p.e}</div><div class="pd">${p.d}</div></div></div>`;
+  });
+  h+=`<div class="cb"><div class="ct">Key Sequencing Constraints</div><ul>`;
+  K.forEach(k=>h+=`<li>${k}</li>`);
+  h+=`</ul></div>`;
+  $('#order').innerHTML=h;
+}
+
+function renderUAT(){
+  let h='<p class="info">Key validation checks for UAT scenarios, organized by domain.</p>';
+  U.forEach(s=>{
+    h+=`<div class="us"><div class="ut">${s.a}</div>`;
+    s.c.forEach((c,i)=>{
+      h+=`<div class="uc"><div class="ub" onclick="this.classList.toggle('ck');this.innerHTML=this.classList.contains('ck')?'✓':''""></div><span>${c}</span></div>`;
+    });
+    h+=`</div>`;
+  });
+  $('#uat').innerHTML=h;
+}
+
+// Init tabs
+['Domain Model','Migration Sequence','UAT Checklist'].forEach((l,i)=>{
+  const t=['model','order','uat'][i];
+  const b=document.createElement('button');
+  b.className='tab'+(i===0?' on':'');
+  b.dataset.t=t;
+  b.textContent=l;
+  b.onclick=()=>showTab(t);
+  $('#tabs').appendChild(b);
+});
+
+render();renderOrder();renderUAT();
+</script>
+</body>
+</html>

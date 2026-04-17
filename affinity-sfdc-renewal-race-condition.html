@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SFDC Renewal Race Condition — MN Investigation</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f9f8f6;
+  color: #1c1c1c;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── HEADER ── */
+.topbar {
+  background: #fff;
+  border-bottom: 1px solid #e8e4df;
+  padding: 12px 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tb-badge {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+.tb-title {
+  font-size: 13px;
+  color: #888;
+  font-family: 'Geist Mono', monospace;
+}
+
+/* ── PAGE ── */
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 32px 80px;
+}
+
+/* ── INTRO ── */
+.intro { margin-bottom: 32px; }
+.intro-label {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #15803d;
+  margin-bottom: 8px;
+}
+.intro-title {
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  color: #111;
+  margin-bottom: 8px;
+}
+.intro-title strong { font-weight: 600; }
+.intro-body {
+  font-size: 14px;
+  color: #666;
+  max-width: 600px;
+  line-height: 1.7;
+}
+
+/* ── EVIDENCE TABLE ── */
+.ev-section { margin-bottom: 36px; }
+.section-mono {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #aaa;
+  margin-bottom: 10px;
+}
+table.ev {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e8e4df;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+}
+table.ev th {
+  background: #faf9f7;
+  padding: 10px 16px;
+  text-align: left;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #aaa;
+  font-weight: 500;
+  border-bottom: 1px solid #e8e4df;
+}
+table.ev td {
+  padding: 13px 16px;
+  border-bottom: 1px solid #f0ece7;
+  vertical-align: middle;
+  color: #333;
+}
+table.ev tr:last-child td { border-bottom: none; }
+table.ev td:first-child { font-weight: 500; }
+.mono { font-family: 'Geist Mono', monospace; font-size: 11px; background: #f0ece7; border-radius: 4px; padding: 2px 7px; color: #5c4d38; }
+.ok { color: #15803d; font-weight: 500; }
+.err { color: #b91c1c; font-weight: 500; }
+.null { color: #bbb; font-style: italic; }
+.ev-note {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: #bbb;
+  margin-top: 8px;
+}
+
+/* ── DIAGRAM CARD ── */
+.diagram-card {
+  background: #fff;
+  border: 1px solid #e8e4df;
+  border-radius: 12px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+}
+.diag-label {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #aaa;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* two column flow */
+.flow-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* path header */
+.path-head {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 0;
+}
+.ph-a { background: #dcfce7; color: #15803d; }
+.ph-b { background: #fef3c7; color: #92400e; }
+
+/* arrow */
+.arrow-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.arrow-cell {
+  text-align: center;
+  color: #ccc;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 0;
+}
+.arrow-cell.hidden { visibility: hidden; }
+
+/* flow box */
+.fbox {
+  border-radius: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.15s ease, opacity 0.1s ease;
+  border: 1.5px solid transparent;
+  text-align: center;
+}
+.fbox:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.09); }
+.fbox:active { transform: translateY(0); }
+.fbox.active { border-color: currentColor; box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+
+.fbox-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.fbox-sub { font-size: 12px; opacity: 0.8; line-height: 1.4; }
+
+/* box colour themes */
+.col-green { background: #dcfce7; color: #14532d; }
+.col-green.active { border-color: #16a34a; }
+.col-amber { background: #fef9c3; color: #713f12; }
+.col-amber.active { border-color: #ca8a04; }
+.col-red   { background: #fee2e2; color: #7f1d1d; }
+.col-red.active   { border-color: #dc2626; }
+.col-blue  { background: #dbeafe; color: #1e3a8a; }
+.col-blue.active  { border-color: #2563eb; }
+.col-purple{ background: #ede9fe; color: #3b0764; }
+.col-purple.active{ border-color: #7c3aed; }
+
+/* outcome badges */
+.outcome-ok {
+  background: #dcfce7;
+  border: 1.5px solid #86efac;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #14532d;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.outcome-err {
+  background: #fee2e2;
+  border: 1.5px solid #fca5a5;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7f1d1d;
+  text-align: center;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.outcome-err:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.09); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+/* section divider */
+.divider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 700px;
+  margin: 16px auto 14px;
+}
+.divider-row::before, .divider-row::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e8e4df;
+}
+.divider-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #999;
+  white-space: nowrap;
+}
+
+/* full-width nodes */
+.full-node {
+  max-width: 700px;
+  margin: 0 auto 10px;
+}
+.fixes-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* ── DETAIL PANEL ── */
+.detail-panel {
+  background: #fff;
+  border: 1px solid #e8e4df;
+  border-radius: 12px;
+  overflow: hidden;
+  display: none;
+}
+.detail-panel.open { display: block; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.detail-header {
+  padding: 20px 28px 16px;
+  border-bottom: 1px solid #f0ece7;
+}
+.detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #aaa;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  margin-bottom: 12px;
+  transition: color 0.12s;
+  padding: 0;
+}
+.detail-back:hover { color: #555; }
+.detail-tag {
+  display: inline-block;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+.dtag-green  { background: #dcfce7; color: #15803d; }
+.dtag-amber  { background: #fef9c3; color: #92400e; }
+.dtag-red    { background: #fee2e2; color: #b91c1c; }
+.dtag-blue   { background: #dbeafe; color: #1d4ed8; }
+.dtag-purple { background: #ede9fe; color: #6d28d9; }
+
+.detail-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #111;
+  margin-bottom: 4px;
+  line-height: 1.25;
+}
+.detail-subtitle {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.65;
+}
+
+.detail-body { padding: 24px 28px; }
+
+.d-section { margin-bottom: 22px; }
+.d-head {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #bbb;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0ece7;
+  margin-bottom: 12px;
+}
+.d-section p {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.75;
+  margin-bottom: 10px;
+}
+.d-section p:last-child { margin-bottom: 0; }
+.d-section strong { font-weight: 600; color: #222; }
+
+.steps { list-style: none; }
+.steps li {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.65;
+  margin-bottom: 10px;
+  align-items: flex-start;
+}
+.snum {
+  flex-shrink: 0;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #f4f1ed;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: #999;
+  margin-top: 2px;
+}
+.steps li strong { font-weight: 600; color: #222; }
+
+.callout {
+  border-radius: 8px;
+  padding: 12px 15px;
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 12px 0;
+  border-left: 3px solid;
+}
+.c-green  { background: #f0fdf4; border-color: #16a34a; color: #14532d; }
+.c-amber  { background: #fffbeb; border-color: #d97706; color: #78350f; }
+.c-red    { background: #fef2f2; border-color: #dc2626; color: #7f1d1d; }
+.c-blue   { background: #eff6ff; border-color: #2563eb; color: #1e3a8a; }
+.c-purple { background: #f5f3ff; border-color: #7c3aed; color: #3b0764; }
+.callout strong { font-weight: 600; }
+
+.logic {
+  background: #faf9f7;
+  border: 1px solid #e8e4df;
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  color: #444;
+  line-height: 1.85;
+  margin: 10px 0;
+}
+.kw { color: #1d4ed8; font-weight: 500; }
+.val { color: #b45309; }
+.cm { color: #16a34a; }
+
+.cmp {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin: 10px 0;
+}
+.cmp th {
+  background: #faf9f7;
+  border: 1px solid #e8e4df;
+  padding: 8px 12px;
+  text-align: left;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #aaa;
+  font-weight: 500;
+}
+.cmp td {
+  padding: 10px 12px;
+  border: 1px solid #e8e4df;
+  color: #444;
+  line-height: 1.5;
+}
+.cmp tr:hover td { background: #faf9f7; }
+.td-ok  { color: #15803d; font-weight: 500; }
+.td-err { color: #b91c1c; font-weight: 500; }
+
+@media (max-width: 640px) {
+  .flow-grid, .arrow-row, .fixes-row { grid-template-columns: 1fr; }
+  .detail-body, .detail-header { padding: 16px 18px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="tb-badge">Active Investigation</span>
+  <span class="tb-title">MN × SFDC — Renewal Opportunity Mapping Race Condition</span>
+</div>
+
+<div class="page">
+
+  <!-- ── INTRO ── -->
+  <div class="intro">
+    <div class="intro-label">MN Support Investigation</div>
+    <h1 class="intro-title">Auto-renewals missing their <strong>Salesforce opportunity</strong></h1>
+    <p class="intro-body">Renewal contracts are being created without a Salesforce opp attached. No opp means no contact role, broken ARR attribution, and anything downstream that reads that field silently fails. Root cause isn't missing data or a config error. An early renewal script is firing for accounts that should be on auto-renew only, leaving a cancelled draft holding the opp reference hostage. By the time MN runs its own renewal logic, it sees that reference, assumes occupied, and skips mapping. Account renews. Opp never connects.</p>
+  </div>
+
+  <!-- ── EVIDENCE TABLE ── -->
+  <div class="ev-section">
+    <div class="section-mono">Evidence — two accounts, two outcomes</div>
+    <table class="ev">
+      <thead>
+        <tr>
+          <th>Account</th>
+          <th>Contract ID</th>
+          <th>OriginalOpportunity__c</th>
+          <th>Contact role created?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Royal Park Partners – 2028</td>
+          <td><span class="mono">800Rp00000eAcY1IAK</span></td>
+          <td><span class="mono">006PQ00000NjYxxYAF</span></td>
+          <td class="ok">Yes — 6s after renewal ✓</td>
+        </tr>
+        <tr>
+          <td>RSJ Services s.r.o – 2027</td>
+          <td><span class="mono">800Rp00000e1rrFIAQ</span></td>
+          <td><span class="null">null</span></td>
+          <td class="err">No — nothing to copy from ✗</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="ev-note">Missing contact role = downstream symptom &nbsp;·&nbsp; null opp field = intermediate failure &nbsp;·&nbsp; shallow opp check = root cause</p>
+  </div>
+
+  <!-- ── DIAGRAM CARD ── -->
+  <div class="diagram-card">
+    <div class="diag-label">Incident flow — click any box to explore</div>
+
+    <!-- path headers -->
+    <div class="flow-grid" style="margin-bottom:10px;">
+      <div class="path-head ph-a">Path A — CSM-managed renewal</div>
+      <div class="path-head ph-b">Path B — auto-renewal</div>
+    </div>
+
+    <!-- row 1: API script -->
+    <div class="flow-grid">
+      <div class="fbox col-green" onclick="openDetail('api-script', this)">
+        <div class="fbox-title">API script runs at T-90 days</div>
+        <div class="fbox-sub">Creates draft quote, maps SFDC opp</div>
+      </div>
+      <div class="fbox col-amber" onclick="openDetail('api-unmanaged', this)">
+        <div class="fbox-title">API script also runs at T-90 days</div>
+        <div class="fbox-sub">Draft quote created, SFDC opp mapped</div>
+      </div>
+    </div>
+
+    <!-- arrows -->
+    <div class="arrow-row"><div class="arrow-cell">↓</div><div class="arrow-cell">↓</div></div>
+
+    <!-- row 2 -->
+    <div class="flow-grid">
+      <div class="fbox col-green" onclick="openDetail('csm-works', this)">
+        <div class="fbox-title">CSM works and confirms quote</div>
+        <div class="fbox-sub">SFDC opp linked, deal closes</div>
+      </div>
+      <div class="fbox col-amber" onclick="openDetail('orphaned', this)">
+        <div class="fbox-title">Quote is never confirmed</div>
+        <div class="fbox-sub">Automation expires it → cancels it</div>
+      </div>
+    </div>
+
+    <!-- arrows -->
+    <div class="arrow-row"><div class="arrow-cell">↓</div><div class="arrow-cell">↓</div></div>
+
+    <!-- row 3: outcomes / renewal date -->
+    <div class="flow-grid">
+      <div class="outcome-ok">
+        <span class="dot"></span> Renewal contract with SFDC opp ✓
+      </div>
+      <div class="fbox col-amber" onclick="openDetail('renewal-fires', this)">
+        <div class="fbox-title">Renewal date arrives</div>
+        <div class="fbox-sub">MN auto-renewal logic fires</div>
+      </div>
+    </div>
+
+    <!-- arrows — only right side -->
+    <div class="arrow-row"><div class="arrow-cell hidden">↓</div><div class="arrow-cell">↓</div></div>
+
+    <!-- row 4: race condition -->
+    <div class="arrow-row" style="gap:12px;">
+      <div></div>
+      <div class="fbox col-red" onclick="openDetail('race', this)">
+        <div class="fbox-title">SFDC opp lookup — race condition</div>
+        <div class="fbox-sub">Opp appears "occupied" by cancelled quote<br>System skips the mapping</div>
+      </div>
+    </div>
+
+    <!-- arrow right only -->
+    <div class="arrow-row"><div class="arrow-cell hidden">↓</div><div class="arrow-cell">↓</div></div>
+
+    <!-- row 5: bad outcome -->
+    <div class="arrow-row" style="gap:12px;">
+      <div></div>
+      <div class="outcome-err" onclick="openDetail('race', this)">
+        <span class="dot"></span> Renewal contract — no SFDC opp ✗
+      </div>
+    </div>
+
+    <!-- Root cause -->
+    <div class="divider-row"><span class="divider-label">Root cause</span></div>
+    <div class="full-node">
+      <div class="fbox col-purple" onclick="openDetail('root-cause', this)">
+        <div class="fbox-title">Opp availability check is too shallow</div>
+        <div class="fbox-sub">It sees an opp is linked to a quote but doesn't check if that quote is cancelled/orphaned</div>
+      </div>
+    </div>
+
+    <!-- Recommended fixes -->
+    <div class="divider-row"><span class="divider-label">Recommended fixes</span></div>
+    <div class="fixes-row">
+      <div class="fbox col-green" onclick="openDetail('fix-process', this)">
+        <div class="fbox-title">Process fix (short-term)</div>
+        <div class="fbox-sub">Scope API script to CSM-managed accounts only. Leave rest on auto-renew.</div>
+      </div>
+      <div class="fbox col-blue" onclick="openDetail('fix-system', this)">
+        <div class="fbox-title">System fix (long-term)</div>
+        <div class="fbox-sub">Deep opp check: if linked quote is cancelled, treat opp as available</div>
+      </div>
+    </div>
+
+  </div><!-- /diagram-card -->
+
+  <!-- ── DETAIL PANEL ── -->
+  <div class="detail-panel" id="detail-panel">
+
+    <!-- api-script -->
+    <div id="d-api-script" class="detail-inner" style="display:none;">
+      <div class="detail-header">
+        <button class="detail-back" onclick="closeDetail()">← back to overview</button>
+        <div class="detail-tag dtag-green">Path A · T − 90 days</div>
+        <div class="detail-title">90-day renewal API script</div>
+        <div class="detail-subtitle">Customer-built. Gives CSMs a working draft 90 days before renewal fires. Right idea, wrong account scope.</div>
+      </div>
+      <div class="detail-body">
+        <div class="d-section">
+          <div class="d-head">What it does</div>
+          <ul class="steps">
+            <li><span class="snum">1</span><span>Fires <strong>90 days before contract renewal date</strong></span></li>
+            <li><span class="snum">2</span><span>Finds which <strong>Salesforce opportunity</strong> belongs to that account's renewal</span></li>
+            <li><span class="snum">3</span><span>Calls MN API to <strong>create a draft renewal quote</strong></span></li>
+            <li><span class="snum">4</span><span>Stamps SFDC opp ID on draft via <span class="mono">monetize__OriginalOpportunity__c</span>, connecting CRM deal to MN renewal object</span></li>
+          </ul>
+        </div>
+        <div class="d-section">
+          <div class="d-head">Why it was built</div>
+          <p>CSM-managed accounts can't wait for MN to fire a renewal 24 hours out. Quotes need negotiating, pricing sign-off, customer approval — that takes weeks. Script creates a pre-built draft, already tied to an SFDC record, so CSMs have something to work with the moment they start the renewal conversation.</p>
+        </div>
+        <div class="d-section">
+          <div class="d-head">Where it goes wrong</div>
+          <div class="callout c-amber">
+            <strong>Assumes a human picks up that draft.</strong> For CSM-managed accounts, someone does. For auto-renewing accounts, nobody ever will. MN still fires its own renewal on schedule regardless, and now two processes are claiming the same SFDC opp with no awareness of each other.
+          </div>
+          <p>Account targeting is what breaks here. MN behavior on both sides is working exactly as built.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- api-unmanaged -->
+    <div id="d-api-unmanaged" class="detail-inner" style="display:none;">
+      <div class="detail-header">
+        <button class="detail-back" onclick="closeDetail()">← back to overview</button>
+        <div class="detail-tag dtag-amber">Path B · T − 90 days</div>
+        <div class="detail-title">Same script, wrong accounts</div>
+        <div class="detail-subtitle">Runs for every account approaching renewal, not just CSM-managed ones. Path A and Path B stop being separate right here.</div>
+      </div>
+      <div class="detail-body">
+        <div class="d-section">
+          <div class="d-head">What's actually happening</div>
+          <p>Script fires for <strong>all accounts approaching renewal</strong>. For accounts set to auto-renew in MN, no human will ever touch that draft. But it still gets created, still stamps an SFDC opp, and sits there until MN's expiry automation eventually cancels it.</p>
+          <p>At that point there's a cancelled quote holding an opp reference that was never released. Field is still populated. Opp still looks taken.</p>
+        </div>
+        <div class="d-section">
+          <div class="d-head">Why it matters</div>
+          <div class="callout c-amber">
+            <strong>Two independent renewal processes are now touching the same account.</strong> Customer's API script ran at T−90. MN auto-renewal fires on renewal date. Neither knows about the other. Both are looking at the same SFDC opp — only one wins and it won't be the right one.
+          </div>
+          <p>Creating the draft isn't what causes this. It's what that draft leaves behind once cancelled.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- csm-works -->
+    <div id="d-csm-works" class="detail-inner" style="display:none;">
+      <div class="detail-header">
+        <button class="detail-back" onclick="closeDetail()">← back to overview</button>
+        <div class="detail-tag dtag-green">Path A · Pre-renewal</div>
+        <div class="detail-title">CSM confirms quote — works cleanly</div>
+        <div class="detail-subtitle">Draft gets picked up, worked, closed before renewal date. Opp maps correctly. This is what it looks like when both paths don't collide.</div>
+      </div>
+      <div class="detail-body">
+        <div class="d-section">
+          <div class="d-head">What happens</div>
+          <ul class="steps">
+            <li><span class="snum">1</span><span>CSM picks up pre-built draft in MN, already linked to SFDC opp</span></li>
+            <li><span class="snum">2</span><span>CSM negotiates, adjusts pricing, gets customer sign-off</span></li>
+            <li><span class="snum">3</span><span>Quote <strong>confirmed in MN</strong> before contract renewal date</span></li>
+            <li><span class="snum">4</span><span>Renewal contract created with <strong>SFDC opp mapped correctly</strong></span></li>
+            <li><span class="snum">5</span><span>CPQ reads <span class="mono">monetize__OriginalOpportunity__c</span>, copies contact role — 6 seconds post-renewal in Royal Park's case</span></li>
+          </ul>
+        </div>
+        <div class="d-section">
+          <div class="d-head">Royal Park Partners – 2028</div>
+          <p>Contract <span class="mono">800Rp00000eAcY1IAK</span> has <span class="mono">monetize__OriginalOpportunity__c</span> populated with <span class="mono">006PQ00000NjYxxYAF</span>. CPQ found it, copied Pauline Grosshans as contact, created contact role 6s post-renewal. Clean end-to-end.</p>
+          <div class="callout c-green">Path A works exactly as built. Problem only exists because Path A's setup script is also running for accounts that live entirely on Path B.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- orphaned -->
+    <div id="d-orphaned" class="detail-inner" style="display:none;">
+      <div class="detail-header">
+        <button class="detail-back" onclick="closeDetail()">← back to overview</button>
+        <div class="detail-tag dtag-amber">Path B · Pre-renewal</div>
+        <div class="detail-title">Quote gets orphaned</div>
+        <div class="detail-subtitle">Nobody owns it. MN eventually cancels it. But before that happens, it already stamped an opp reference that never gets cleared.</div>
+      </div>
+      <div class="detail-body">
+        <div class="d-section">
+          <div class="d-head">What happens to an unworked draft</div>
+          <ul class="steps">
+            <li><span class="snum">1</span><span><strong>T − 90 days:</strong> API script creates draft, maps SFDC opp to it</span></li>
+            <li><span class="snum">2</span><span><strong>Nothing happens:</strong> No CSM assigned. Quote sits in draft, untouched.</span></li>
+            <li><span class="snum">3</span><span><strong>MN expiry kicks in:</strong> After configured idle window, draft gets marked expired</span></li>
+            <li><span class="snum">4</span><span><strong>Expired gets cancelled:</strong> Follow-on automation closes it out</span></li>
+            <li><span class="snum">5</span><span><strong>Opp reference stays.</strong> Cancellation doesn't touch <span class="mono">monetize__OriginalOpportunity__c</span>. Field still populated on a dead quote.</span></li>
+          </ul>
+        </div>
+        <div class="d-section">
+          <div class="d-head">Why cancellation isn't enough</div>
+          <p>MN cancels that quote. It does <strong>not</strong> release the opp. Reference survives on a cancelled record, still pointing at a Salesforce opp that's now effectively locked to nothing useful.</p>
+          <div class="callout c-amber"><strong>This is where damage actually happens.</strong> Not when renewal fires. Not when the check fails. Right here — cancelled quote holds an opp hostage and MN has no logic to look past it.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- renewal-fires -->
+    <div id="d-renewal-fires" class="detail-inner" style="display:none;">
+      <div class="detail-header">
+        <button class="detail-back" onclick="closeDetail()">← back to overview</button>
+        <div class="detail-tag dtag-amber">Path B · Renewal date</div>
+        <div class="detail-title">MN auto-renewal fires</div>
+        <div class="detail-subtitle">Contract date hits, MN kicks off renewal logic — and immediately runs into a dead quote still holding an opp reference from 90 days ago.</div>
+      </div>
+      <div class="detail-body">
+        <div class="d-section">
+          <div class="d-head">What kicks off</div>
+          <p>On renewal date (or 24 hours before start), MN auto-renewal creates a new quote and contract. Part of that process: look up an open SFDC opp to attach via <span class="mono">monetize__OriginalOpportunity__c</span>.</p>
+          <p>That lookup hits the orphaned quote's reference. MN reads it as occupied. Doesn't dig any further.</p>
+        </div>
+        <div class="d-section">
+          <div class="d-head">What happens at that lookup</div>
+          <p>See <strong>Race condition</strong> for the exact failure — this node is the trigger, that one is where MN makes the wrong call.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- race -->
+    <div id="d-race" class="detail-inner" style="display:none;">
+      <div class="detail-header">
+        <button class="detail-back" onclick="closeDetail()">← back to overview</button>
+        <div class="detail-tag dtag-red">Path B · Race condition</div>
+        <div class="detail-title">Opp lookup fails — contract created without SFDC link</div>
+        <div class="detail-subtitle">MN sees an opp reference on a cancelled quote, calls it occupied, skips mapping. Contract goes through. Opp field is null.</div>
+      </div>
+      <div class="detail-body">
+        <div class="d-section">
+          <div class="d-head">Step by step</div>
+          <ul class="steps">
+            <li><span class="snum">1</span><span><strong>Renewal date hits.</strong> MN creates new renewal quote and contract.</span></li>
+            <li><span class="snum">2</span><span><strong>MN looks for open SFDC opp</strong> to stamp on contract via <span class="mono">monetize__OriginalOpportunity__c</span>.</span></li>
+            <li><span class="snum">3</span><span><strong>Opp found</strong> — already referenced by orphaned, cancelled draft from 90 days prior.</span></li>
+            <li><span class="snum">4</span><span><strong>Check stops there.</strong> MN reads "opp has a quote reference," marks it occupied. Doesn't check if that quote is still active, expired, or cancelled.</span></li>
+            <li><span class="snum">5</span><span><strong>Mapping skipped.</strong> Contract created with <span class="mono">monetize__OriginalOpportunity__c = null</span>.</span></li>
+            <li><span class="snum">6</span><span><strong>Everything downstream breaks.</strong> No opp means no contact role from CPQ, ARR attribution off, and any logic reading that field on renewal contracts gets nothing.</span></li>
+          </ul>
+        </div>
+        <div class="d-section">
+          <div class="d-head">RSJ Services s.r.o – 2027</div>
+          <p>Contract <span class="mono">800Rp00000e1rrFIAQ</span> shows <span class="mono">monetize__OriginalOpportunity__c = null</span>. Opp was there, MN found it, blocked by a cancelled draft reference. Mapping skipped. No contact role, ever.</p>
+        </div>
+        <div class="d-section">
+          <div class="d-head">Why both sides think they're right</div>
+          <table class="cmp">
+            <tr><th>Process</th><th>Fires when</th><th>Assumes</th></tr>
+            <tr><td>Customer API script</td><td>T − 90 days</td><td>A human will close that draft</td></tr>
+            <tr><td>MN auto-renewal</td><td>Renewal date</td><td>No prior draft exists for this opp</td></tr>
+          </table>
+          <p style="margin-top:10px;">Both are right in their own lane. Problem is they share a lane for auto-renewing accounts and nobody accounted for it.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- root-cause -->
+    <div id="d-root-cause" class="detail-inner" style="display:none;">
+      <div class="detail-header">
+        <button class="detail-back" onclick="closeDetail()">← back to overview</button>
+        <div class="detail-tag dtag-purple">Root cause</div>
+        <div class="detail-title">Opp availability check is too shallow</div>
+        <div class="detail-subtitle">MN checks whether a quote reference exists on an opp. Doesn't check if that quote is still alive. One missing condition behind all of this.</div>
+      </div>
+      <div class="detail-body">
+        <div class="d-section">
+          <div class="d-head">Current logic (simplified)</div>
+          <div class="logic">
+            <span class="cm">// Current check</span><br>
+            <span class="kw">IF</span> opportunity.referenced_by_quote <span class="kw">EXISTS</span><br>
+            &nbsp;&nbsp;→ treat as <span class="val">occupied</span> → skip mapping
+          </div>
+          <p>Guard was built to stop one SFDC opp being attached to two active renewal quotes at once. Reasonable. But it treats a cancelled quote the same as an active one — reference exists, MN walks away, mapping never happens.</p>
+        </div>
+        <div class="d-section">
+          <div class="d-head">What it should do</div>
+          <div class="logic">
+            <span class="cm">// Required logic</span><br>
+            <span class="kw">IF</span> opportunity.referenced_by_quote <span class="kw">EXISTS</span><br>
+            &nbsp;&nbsp;<span class="kw">AND</span> quote.status <span class="kw">IN</span> (<span class="val">draft</span>, <span class="val">confirmed</span>, <span class="val">active</span>)<br>
+            &nbsp;&nbsp;→ treat as <span class="val">occupied</span><br><br>
+            <span class="kw">IF</span> quote.status <span class="kw">IN</span> (<span class="val">expired</span>, <span class="val">cancelled</span>, <span class="val">voided</span>)<br>
+            &nbsp;&nbsp;→ treat opp as <span class="val">available</span>
+          </div>
+        </div>
+        <div class="d-section">
+          <div class="d-head">How to categorise this</div>
+          <table class="cmp">
+            <tr><th>Category</th><th>Assessment</th></tr>
+            <tr><td>Product bug?</td><td>Partially. Logic gap, but MN was never designed to handle two external renewal triggers competing on the same account</td></tr>
+            <tr><td>Config issue?</td><td>No. Both systems set up correctly within their own scope</td></tr>
+            <tr><td>Integration issue?</td><td>Yes. Two processes with no shared state, both writing to the same field</td></tr>
+            <tr><td>Process issue?</td><td>Yes. API script running against wrong accounts is fixable right now without any MN changes</td></tr>
+          </table>
+        </div>
+        <div class="d-section">
+          <div class="d-head">Why it took this long to surface</div>
+          <p>Missing opps were caught and corrected by hand for a long time — low volume, quiet problem. As auto-renewing contract volume scaled up, manual patching couldn't keep pace and the pattern became impossible to ignore.</p>
+          <div class="callout c-purple"><strong>Worth flagging:</strong> MN already does precedence handling for amendments — confirmed amendment kills competing drafts. That same thinking needs to reach the opp-search layer for renewals.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- fix-process -->
+    <div id="d-fix-process" class="detail-inner" style="display:none;">
+      <div class="detail-header">
+        <button class="detail-back" onclick="closeDetail()">← back to overview</button>
+        <div class="detail-tag dtag-green">Short-term fix · Process</div>
+        <div class="detail-title">Scope API script to managed accounts only</div>
+        <div class="detail-subtitle">Stops new occurrences from today. Both renewal paths run independently, on the right accounts, with no overlap.</div>
+      </div>
+      <div class="detail-body">
+        <div class="d-section">
+          <div class="d-head">Steps</div>
+          <ul class="steps">
+            <li><span class="snum">1</span><span>Define a flag in SFDC or MN marking accounts as CSM-managed — likely already exists as account type or CSM assignment field</span></li>
+            <li><span class="snum">2</span><span>Add a pre-flight check to API script: <span class="mono">IF account.renewal_type != 'csm_managed' → skip</span></span></li>
+            <li><span class="snum">3</span><span>Unmanaged accounts stay on MN auto-renewal only — no early draft, no occupied opp reference, no collision</span></li>
+          </ul>
+          <div class="callout c-green"><strong>Net result:</strong> CSM accounts get their 90-day head start. Auto-renewing accounts go straight to MN. Neither path touches the other's opp.</div>
+        </div>
+        <div class="d-section">
+          <div class="d-head">What this won't fix</div>
+          <p>Historical renewals already sitting with <span class="mono">monetize__OriginalOpportunity__c = null</span>. Pull those contracts, identify correct SFDC opp for each, correct manually or run a backfill script to re-link them.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- fix-system -->
+    <div id="d-fix-system" class="detail-inner" style="display:none;">
+      <div class="detail-header">
+        <button class="detail-back" onclick="closeDetail()">← back to overview</button>
+        <div class="detail-tag dtag-blue">Long-term fix · System</div>
+        <div class="detail-title">Deep opp lookup — check quote state, not just existence</div>
+        <div class="detail-subtitle">Permanent fix at logic level. Doesn't matter how many external triggers run — MN will correctly evaluate whether an opp is genuinely in use.</div>
+      </div>
+      <div class="detail-body">
+        <div class="d-section">
+          <div class="d-head">Engineering change</div>
+          <div class="logic">
+            <span class="cm">// Find all quotes referencing this opp</span><br>
+            quotes = <span class="kw">SELECT</span> * <span class="kw">FROM</span> quotes <span class="kw">WHERE</span> original_opportunity = opp.id<br>
+            active = quotes.<span class="kw">filter</span>(q → q.status <span class="kw">NOT IN</span> [<span class="val">'cancelled'</span>, <span class="val">'expired'</span>, <span class="val">'voided'</span>])<br><br>
+            <span class="kw">IF</span> active.length == <span class="val">0</span> → opp is <span class="val">available</span><br>
+            <span class="kw">ELSE</span> → opp is <span class="val">occupied</span>
+          </div>
+        </div>
+        <div class="d-section">
+          <div class="d-head">Quote state reference</div>
+          <table class="cmp">
+            <tr><th>Scenario</th><th>Quote status</th><th>Opp availability</th></tr>
+            <tr><td>Active draft</td><td>Draft</td><td>Occupied — do not claim</td></tr>
+            <tr><td>Confirmed quote</td><td>Confirmed</td><td>Occupied — do not claim</td></tr>
+            <tr><td>Orphaned, cancelled</td><td>Cancelled</td><td class="td-ok">Available — allow claim ✓</td></tr>
+            <tr><td>Timed out, expired</td><td>Expired</td><td class="td-ok">Available — allow claim ✓</td></tr>
+          </table>
+        </div>
+        <div class="d-section">
+          <div class="d-head">Sequencing</div>
+          <div class="callout c-blue"><strong>Ship process fix first.</strong> Stops new occurrences immediately, no engineering required. System fix follows as a proper fix at logic level — so even if process slips again in future, MN handles it correctly on its own.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /detail-panel -->
+
+</div><!-- /page -->
+
+<script>
+let activeBox = null;
+
+function openDetail(id, el) {
+  // deactivate old box
+  if (activeBox) activeBox.classList.remove('active');
+  el.classList.add('active');
+  activeBox = el;
+
+  // hide all detail inners
+  document.querySelectorAll('.detail-inner').forEach(d => d.style.display = 'none');
+
+  // show target
+  const inner = document.getElementById('d-' + id);
+  if (!inner) return;
+  inner.style.display = 'block';
+
+  // show panel
+  const panel = document.getElementById('detail-panel');
+  panel.classList.add('open');
+
+  // smooth scroll to detail
+  setTimeout(() => {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 50);
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.querySelectorAll('.detail-inner').forEach(d => d.style.display = 'none');
+  if (activeBox) { activeBox.classList.remove('active'); activeBox = null; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MonetizeNow — Revenue Journey</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8f7f4;--surface:#ffffff;--surface2:#f3f1ec;
+  --border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.13);
+  --ink:#111110;--ink2:#484744;--ink3:#888680;--ink4:#b8b5ae;--ink5:#d8d5ce;
+  --moat:#4338ca;--moat-bg:#eef2ff;--moat-border:#c7d2fe;
+  --diff:#0d6b52;--diff-bg:#f0fdf9;--diff-border:#6ee7c7;
+  --core-bg:#f8f7f4;--core-border:#d8d5ce;
+  --red:#991b1b;--red-bg:#fff5f5;
+  --green:#065f46;--green-bg:#f0fdf9;
+  --blue:#1e40af;--blue-bg:#eff6ff;
+}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'Geist',sans-serif;font-size:13px;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+.topbar{height:50px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;gap:16px}
+.t-left{display:flex;align-items:center;gap:12px}
+.toggle-btn{width:28px;height:28px;border:1px solid var(--border2);border-radius:6px;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s}
+.toggle-btn:hover{background:var(--surface2)}
+.hlines{width:14px;height:9px;display:flex;flex-direction:column;justify-content:space-between}
+.hlines span{display:block;height:1.5px;background:var(--ink2);border-radius:1px}
+.brand{font-family:'Instrument Serif',serif;font-size:15px;color:var(--ink);letter-spacing:-.01em}
+.brand span{color:var(--ink4);font-size:13px;font-family:'Geist',sans-serif;font-weight:300}
+.t-right{display:flex;align-items:center;gap:6px}
+.ptab{padding:5px 13px;font-size:11px;font-weight:500;border:1px solid var(--border2);border-radius:20px;background:none;cursor:pointer;color:var(--ink3);font-family:'Geist',sans-serif;transition:all .12s}
+.ptab:hover{color:var(--ink);border-color:var(--ink3)}
+.ptab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.legend-bar{height:34px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:20px;flex-shrink:0}
+.leg{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink3)}
+.leg-mark{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.leg-sep{width:1px;height:14px;background:var(--border2);margin:0 4px}
+.main{flex:1;display:flex;overflow:hidden}
+.sidebar{width:200px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s cubic-bezier(.4,0,.2,1),opacity .15s}
+.sidebar.closed{width:0;opacity:0;pointer-events:none;border-right:none}
+.sb-scroll{flex:1;overflow-y:auto;padding:8px 0}
+.sb-scroll::-webkit-scrollbar{width:3px}
+.sb-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.sb-group{font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink4);padding:12px 16px 4px}
+.sb-item{display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:12px;color:var(--ink3);cursor:pointer;border-left:2px solid transparent;transition:all .1s;white-space:nowrap;overflow:hidden}
+.sb-item:hover{color:var(--ink);background:var(--surface2)}
+.sb-item.on{color:var(--ink);background:var(--moat-bg);border-left-color:var(--moat);font-weight:500}
+.sb-pip{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.content-area{flex:1;display:flex;overflow:hidden}
+.content{flex:1;overflow-y:auto;padding:0}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.sec{display:none;padding:28px 32px 64px;animation:up .16s ease both}
+.sec.on{display:block}
+@keyframes up{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.journey-map{display:flex;flex-direction:column;gap:10px}
+.stage-block{display:flex;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--surface);transition:border-color .15s}
+.stage-block:hover{border-color:var(--border2)}
+.stage-label{width:150px;flex-shrink:0;display:flex;flex-direction:column;justify-content:flex-start;padding:20px 16px;border-right:1px solid var(--border)}
+.stage-num{font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--ink4);margin-bottom:6px}
+.stage-title{font-family:'Instrument Serif',serif;font-size:15px;line-height:1.2;letter-spacing:-.01em;margin-bottom:8px}
+.moat-badge{font-size:9px;font-family:'Geist Mono',monospace;letter-spacing:.07em;color:var(--moat);background:var(--moat-bg);padding:2px 6px;border-radius:3px;display:inline-block;margin-bottom:8px}
+.stage-count{font-size:10px;color:var(--ink4);margin-top:auto}
+.stage-break{width:210px;flex-shrink:0;padding:20px 16px;border-right:1px solid var(--border);background:var(--red-bg)}
+.break-eyebrow{display:flex;align-items:center;gap:5px;font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--red);margin-bottom:8px}
+.break-eyebrow::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--red);flex-shrink:0}
+.break-text{font-size:12px;color:var(--ink2);line-height:1.5}
+.stage-caps{flex:1;padding:14px 16px;min-width:0}
+.caps-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:5px}
+.cap-pill{display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;transition:all .12s;min-width:0}
+.cap-pill:hover{border-color:var(--border2);background:var(--surface);transform:translateY(-1px)}
+.cap-pill.selected{border-color:var(--moat);background:var(--moat-bg)}
+.cap-pill.dimmed{opacity:.18;pointer-events:none}
+.pill-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px}
+.pill-text{min-width:0;flex:1}
+.pill-name{font-size:12px;font-weight:500;color:var(--ink);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill-line{font-size:10px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.pill-dot{flex-shrink:0;width:6px;height:6px;border-radius:50%;margin-left:2px}
+.detail-panel{width:0;flex-shrink:0;overflow:hidden;border-left:1px solid var(--border);background:var(--surface);transition:width .22s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.detail-panel.open{width:340px}
+.dp-head{padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.dp-title{font-family:'Instrument Serif',serif;font-size:16px;line-height:1.2;color:var(--ink);letter-spacing:-.01em}
+.dp-close{width:24px;height:24px;border:1px solid var(--border2);border-radius:5px;background:none;cursor:pointer;color:var(--ink3);font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .1s}
+.dp-close:hover{background:var(--surface2);color:var(--ink)}
+.dp-chips{display:flex;gap:5px;padding:12px 20px 0;flex-wrap:wrap;flex-shrink:0}
+.dp-chip{font-size:10px;font-weight:500;padding:3px 9px;border-radius:20px;font-family:'Geist Mono',monospace;letter-spacing:.02em}
+.chip-revops{background:var(--moat-bg);color:var(--moat);border:1px solid var(--moat-border)}
+.chip-cfo{background:var(--diff-bg);color:var(--diff);border:1px solid var(--diff-border)}
+.chip-both{background:var(--surface2);color:var(--ink2);border:1px solid var(--border2)}
+.dp-body{flex:1;overflow-y:auto}
+.dp-body::-webkit-scrollbar{width:3px}
+.dp-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.dp-section{padding:16px 20px;border-bottom:1px solid var(--border)}
+.dp-section:last-child{border-bottom:none}
+.dp-sec-lbl{display:flex;align-items:center;gap:6px;font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:.09em;text-transform:uppercase;margin-bottom:10px}
+.dp-sec-lbl .dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.dp-items{display:flex;flex-direction:column;gap:7px}
+.dp-item{display:flex;gap:7px;align-items:flex-start}
+.dp-dash{font-family:'Geist Mono',monospace;font-size:10px;color:var(--ink4);flex-shrink:0;margin-top:2px}
+.dp-text{font-size:12px;color:var(--ink2);line-height:1.5}
+.ov-header{margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.ov-eyebrow{font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink4);margin-bottom:10px}
+.ov-title{font-family:'Instrument Serif',serif;font-size:26px;font-weight:400;line-height:1.15;letter-spacing:-.02em;color:var(--ink);margin-bottom:8px}
+.ov-title em{font-style:italic;color:var(--moat)}
+.ov-body{font-size:13px;color:var(--ink2);line-height:1.7;max-width:580px}
+.ov-stages{display:flex;flex-direction:column;gap:7px;margin-bottom:20px}
+.ov-row{display:flex;align-items:center;gap:14px;padding:13px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;transition:all .12s}
+.ov-row:hover{border-color:var(--border2);transform:translateX(2px)}
+.ov-row.moat{border-left:3px solid var(--moat);background:var(--moat-bg)}
+.ov-num{font-family:'Geist Mono',monospace;font-size:10px;color:var(--ink4);width:22px;flex-shrink:0}
+.ov-name{font-size:13px;font-weight:500;color:var(--ink);width:170px;flex-shrink:0}
+.ov-row.moat .ov-name{color:var(--moat)}
+.ov-break{font-size:12px;color:var(--ink3);flex:1;line-height:1.4}
+.ov-pills{display:flex;gap:4px;margin-left:auto;flex-shrink:0;flex-wrap:wrap;max-width:200px;justify-content:flex-end}
+.ov-pill{font-size:9px;padding:2px 7px;border-radius:20px;background:var(--surface2);color:var(--ink3);border:1px solid var(--border);white-space:nowrap}
+.ov-row.moat .ov-pill{background:var(--moat-bg);color:var(--moat);border-color:var(--moat-border)}
+.ov-legend{padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.ov-leg-title{font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink4);margin-bottom:10px}
+.ov-leg-items{display:flex;gap:18px;flex-wrap:wrap}
+.ov-leg-item{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink3)}
+.ov-leg-sw{width:10px;height:10px;border-radius:2px}
+.statusbar{height:30px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.sb-s{font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:.06em;color:var(--ink4);text-transform:uppercase}
+.sb-s span{color:var(--ink3)}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="topbar">
+  <div class="t-left">
+    <button class="toggle-btn" onclick="toggleSB()"><div class="hlines"><span></span><span></span><span></span></div></button>
+    <div class="brand">MonetizeNow <span>/ Product Intelligence</span></div>
+  </div>
+  <div class="t-right">
+    <button class="ptab on" onclick="setP('all',this)">All</button>
+    <button class="ptab" onclick="setP('revops',this)">VP RevOps</button>
+    <button class="ptab" onclick="setP('cfo',this)">CFO</button>
+  </div>
+</div>
+<div class="legend-bar">
+  <div class="leg"><span class="leg-mark" style="background:var(--moat);border-radius:50%"></span>Architectural moat</div>
+  <div class="leg"><span class="leg-mark" style="background:var(--diff)"></span>Differentiator</div>
+  <div class="leg"><span class="leg-mark" style="background:var(--ink5)"></span>Core</div>
+  <div class="leg-sep"></div>
+  <div class="leg"><span class="leg-mark" style="background:#fee2e2;border:1px solid #fca5a5"></span>The break — what fails today</div>
+  <div class="leg-sep"></div>
+  <div class="leg" style="color:var(--ink4);font-size:10px;margin-left:auto">Click any capability for full detail →</div>
+</div>
+<div class="main">
+  <nav class="sidebar" id="sidebar">
+    <div class="sb-scroll">
+      <div class="sb-item on" onclick="go('overview',this)"><span class="sb-pip" style="background:var(--ink3)"></span>Overview</div>
+      <div class="sb-group">Journey</div>
+      <div class="sb-item" onclick="go('journey',this)"><span class="sb-pip" style="background:var(--ink3)"></span>Full journey map</div>
+      <div class="sb-group">By stage</div>
+      <div class="sb-item" onclick="go('orig',this)"><span class="sb-pip" style="background:#a16207"></span>01 · Deal origination</div>
+      <div class="sb-item" onclick="go('cpq',this)"><span class="sb-pip" style="background:var(--diff)"></span>02 · Configure Price Quote</div>
+      <div class="sb-item" onclick="go('policy',this)"><span class="sb-pip" style="background:var(--moat)"></span>03 · Policy engine</div>
+      <div class="sb-item" onclick="go('contract',this)"><span class="sb-pip" style="background:#9a3412"></span>04 · Contract &amp; Renewal</div>
+      <div class="sb-item" onclick="go('billing',this)"><span class="sb-pip" style="background:#1e4d8c"></span>05 · Billing Usage Payments</div>
+      <div class="sb-item" onclick="go('infra',this)"><span class="sb-pip" style="background:#3d6b24"></span>06 · Automation Integration</div>
+      <div class="sb-group">Persona</div>
+      <div class="sb-item" onclick="go('overview',this);setP('revops',null)"><span class="sb-pip" style="background:var(--moat)"></span>VP RevOps view</div>
+      <div class="sb-item" onclick="go('overview',this);setP('cfo',null)"><span class="sb-pip" style="background:var(--diff)"></span>CFO view</div>
+    </div>
+  </nav>
+  <div class="content-area">
+    <div class="content" id="content">
+      <div class="sec on" id="sec-overview"><div style="padding:28px 32px 64px">
+        <div class="ov-header">
+          <div class="ov-eyebrow">Product intelligence brief</div>
+          <div class="ov-title">The revenue journey —<br><em>where it breaks, what fixes it</em></div>
+          <div class="ov-body">Six stages. Each one is a point where revenue either flows cleanly or leaks. The red column shows what fails today. Every capability maps to a specific failure at a specific stage. Click any stage to go deep.</div>
+        </div>
+        <div class="ov-stages" id="ov-stages"></div>
+        <div class="ov-legend">
+          <div class="ov-leg-title">Reading a capability entry</div>
+          <div class="ov-leg-items">
+            <div class="ov-leg-item"><span class="ov-leg-sw" style="background:var(--blue-bg);border:1px solid #bfdbfe"></span>Behaviour — what it does</div>
+            <div class="ov-leg-item"><span class="ov-leg-sw" style="background:#fff5f5;border:1px solid #fca5a5"></span>Failure addressed — before MN</div>
+            <div class="ov-leg-item"><span class="ov-leg-sw" style="background:var(--green-bg);border:1px solid #6ee7b7"></span>Who carries it today</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="sec" id="sec-journey"><div style="padding:28px 32px 64px"><div class="journey-map" id="map-all"></div></div></div>
+      <div class="sec" id="sec-orig"><div style="padding:28px 32px 64px"><div class="journey-map" id="map-orig"></div></div></div>
+      <div class="sec" id="sec-cpq"><div style="padding:28px 32px 64px"><div class="journey-map" id="map-cpq"></div></div></div>
+      <div class="sec" id="sec-policy"><div style="padding:28px 32px 64px"><div class="journey-map" id="map-policy"></div></div></div>
+      <div class="sec" id="sec-contract"><div style="padding:28px 32px 64px"><div class="journey-map" id="map-contract"></div></div></div>
+      <div class="sec" id="sec-billing"><div style="padding:28px 32px 64px"><div class="journey-map" id="map-billing"></div></div></div>
+      <div class="sec" id="sec-infra"><div style="padding:28px 32px 64px"><div class="journey-map" id="map-infra"></div></div></div>
+    </div>
+    <div class="detail-panel" id="dp">
+      <div class="dp-head">
+        <div class="dp-title" id="dp-title"></div>
+        <button class="dp-close" onclick="closeDP()">✕</button>
+      </div>
+      <div class="dp-chips" id="dp-chips"></div>
+      <div class="dp-body" id="dp-body"></div>
+    </div>
+  </div>
+</div>
+<div class="statusbar">
+  <div class="sb-s">MonetizeNow / Product Intelligence</div>
+  <div class="sb-s" id="sb-p" style="margin-left:auto">Viewing: <span>All capabilities</span></div>
+  <div class="sb-s" id="sb-sel">Select a capability for detail</div>
+</div>
+</div>
+<script>
+var sbOpen=true,activeP='all';
+var D=[
+  {id:'orig',num:'01',title:'Deal origination',color:'#a16207',colorBg:'#fefce8',
+   fracture:'Deals enter as unstructured signals — CRM, email, verbal. No clean handoff. RevOps translates manually on every deal.',
+   caps:[
+    {name:'Salesforce connector',line:'Bidirectional sync with status write-back on close',tag:'core',persona:'revops',
+     what:['Opportunity ingested with customId, owner, accountId, direct URL reference','PROCESSED state writes WON back to Salesforce automatically','Net-new accounts created in MN with external ID for reverse lookup'],
+     prob:['RevOps manually monitors CRM to intercept bad-data deals before billing','Deals close in Salesforce with zero billing awareness — invoiced late, wrong, or missed','Systems diverge; weekly 2–4hr reconciliation with no automated correction path'],
+     feel:['RevOps: the CRM-to-billing translation job is replaced by a sync','Sales ops: pipeline and revenue data reference the same records','CFO: won-but-not-billed becomes a detectable state, not a silent leak']},
+    {name:'Deal Room',line:'Persistent shared workspace; all versions timestamped in platform',tag:'diff',persona:'revops',
+     what:['All activity — versions, counterproposals, commitments — recorded with timestamps','Buyer participates in-platform; no PDF circulation or email thread dependency','Every deal version traceable; no ambiguity about which was accepted'],
+     prob:['Deals accumulate 4–7 PDFs by close; disputed versions require forensic reconstruction','Verbal commitments during negotiation surface as billing disputes post-signature','Post-signature disagreements have no clean record — inbox archaeology across both parties'],
+     feel:['RevOps: billing disputes resolved against a platform record, not memory','Legal: informal commitments are either in the record or they did not happen','CFO: off-contract commitments that become billing exceptions stop occurring']},
+    {name:'Multi-quote opportunities',line:'One opportunity, multiple quotes, full version history retained',tag:'core',persona:'revops',
+     what:['Multiple quotes per opportunity with primaryQuoteId; all versions retained permanently','Types: NEW, AMENDMENT, RENEWAL — each with own workflow and data requirements','No quote deleted when superseded by a revision'],
+     prob:['Reps clone opportunities per revision — pipeline becomes structurally unanalysable','No scenario comparison for same deal without an external spreadsheet','Post-close decision trail — what was offered, countered, chosen — is unrecoverable'],
+     feel:['RevOps: deal history contained in one record — auditable and complete','Sales leadership: pricing strategy analysis becomes possible from structured data','CFO: deal structure decisions are on record and attributable']}
+  ]},
+  {id:'cpq',num:'02',title:'Configure · Price · Quote',color:'#0d6b52',colorBg:'#f0fdf9',
+   fracture:'Reps build quotes from memory. Wrong products, wrong prices, wrong terms. RevOps corrects 60–70% of quotes before deals can advance.',
+   caps:[
+    {name:'Guided quoting',line:'Invalid configurations structurally unavailable, not just warned',tag:'diff',persona:'revops',
+     what:['Catalog filtered to valid combinations at selection time — incompatible products not surfaced','Pricing rules applied at selection; rep sees rule-adjusted price, not base price','Configuration validated before save — errors prevented, not warned'],
+     prob:['Incompatible selections reach contract stage and require retraction after signing','Discount applied to wrong tier — shortfall found at invoice, weeks post-close','RevOps reviews 60–70% of quotes for structural errors — recurring overhead'],
+     feel:['RevOps: quote review for basic errors ceases to be necessary — the task disappears','Reps: quote construction faster — only valid paths available','CFO: pricing integrity established at creation, not corrected at invoice']},
+    {name:'Quote blueprints',line:'Pre-approved structures as validated starting points',tag:'diff',persona:'revops',
+     what:['Blueprints define validated product sets, discount ranges, standard terms','Reps start from a correct baseline — not from memory or a copied prior quote','Blueprint usage trackable — analytical signal on which structures close deals'],
+     prob:['Each rep reconstructs from memory — inconsistency compounds across team','Winning configs are tacit knowledge held by senior reps; lost when they leave','No mechanism to retire outdated structures; old formats circulate as unofficial templates'],
+     feel:['Sales leadership: best configurations become institutional property','RevOps: standard deals stop requiring RevOps involvement to be correctly formed','Enablement: onboarding ramp shortens — new reps start from proven structures']},
+    {name:'Versioned rate cards',line:'Rate at quote creation immutably locked to that quote',tag:'core',persona:'cfo',
+     what:['Every rate has startDate and endDate — pricing history structurally preserved','Rate at quote creation locked; subsequent catalog changes do not affect in-flight deals','Updates propagate consistently; all tenants reference same versioned catalog'],
+     prob:['Rate card update bleeds into in-flight contracts — wrong billing at next run','Finance cannot reconstruct the applicable rate on a given date — no version trail','Reps quote outdated rates; customer billed differently than quoted'],
+     feel:['CFO: rate disputes at audit closed by data, not discussion','Finance: billing accuracy improves without manual rate reconciliation','RevOps: rate changes do not require notifying every rep']},
+    {name:'Multi-model pricing',line:'Flat, per-seat, usage, hybrid — all native, no re-platform required',tag:'diff',persona:'cfo',
+     what:['Offering V2 API supports new pricing types as configuration, not engineering','All models coexist on one contract — platform fee + per-seat + usage on single invoice','Tiered, volume, and flat structures native — not billing workarounds'],
+     prob:['Move to hybrid pricing — vendor cannot support it — 9-month re-platform required','Multiple models require multiple systems; unified invoice is structurally impossible','Sales cannot offer market-appropriate structures because billing imposes constraints'],
+     feel:['CFO: pricing strategy evolves without triggering an infrastructure project','Product: pricing decisions driven by market fit, not billing architecture','Sales: hybrid structures available to close now, not after re-platform']},
+    {name:'Quote types',line:'NEW / AMENDMENT / RENEWAL with own workflows and contract lineage',tag:'core',persona:'revops',
+     what:['NEW: full quoting workflow. AMENDMENT: previousQuoteId + previousContractId linkage','RENEWAL: prior terms inherited; renewal-specific rules and uplift applied automatically','Bidirectional traceability — every quote linked to its contract history'],
+     prob:['Amendments created as new quotes with no contract linkage — billing has no context','Renewals processed identically to new deals — wrong chains, wrong terms, wrong logic','Amendment history requires reconstruction from emails — unreliable for audit'],
+     feel:['RevOps: deal type routing is automatic at creation','Legal: amendment history structurally traceable via contract identifiers','CFO: renewal and amendment governance differs from new business by design']}
+  ]},
+  {id:'policy',num:'03',title:'Policy engine',color:'#4338ca',colorBg:'#eef2ff',isMoat:true,
+   fracture:'Revenue policy — who approves what, when legal steps in, what discount thresholds apply — lives in people\'s heads. Every deal gambles on the right person being present.',
+   caps:[
+    {name:'Rules engine V2',line:'Policy as code — every quote evaluated on REVIEW, no exceptions',tag:'moat',persona:'both',
+     what:['Separate governance service, architecturally isolated from CPQ and billing layers','Evaluates every quote on REVIEW state transition — no human trigger, no exceptions','Outputs: approval requirements, mandatory flags, term injections, lifecycle behaviour per rule'],
+     prob:['Revenue policy in human memory, Slack threads, docs — no enforcement at transaction level','Compliance discipline-dependent — consistent only while right people are present','No systematic enforcement; experienced reps learn edge cases; exceptions accumulate silently'],
+     feel:['CFO: policy compliance shifts from discipline-dependent to architecture-dependent','RevOps: manual enforcement layer replaced by a service — the work is eliminated','Audit: compliance demonstrable via structured records, not anecdote']},
+    {name:'Ranked approval gates',line:'Mandatory, sequenced, hard gate on state — not a notification',tag:'moat',persona:'both',
+     what:['Each rule generates QuoteApproval: ruleId, rank, mandatory flag, approverId','Quote cannot move to SENT until all mandatory approvals clear — enforced at state machine','Rank N+1 not surfaced until rank N clears fully'],
+     prob:['Approvals complete out of sequence — CFO approves before VP Sales; accountability gaps','Deals close without required approvals when informal process breaks down','Approval confirmation is a Slack reply — no structured record of what was approved, when'],
+     feel:['CFO: approval sequence enforced, not suggested — cannot be reordered by reply timing','Legal: every approval is a structured record: ruleId, approverId, version, timestamp','RevOps: approval dashboard replaces multi-channel chase — all pending in one filterable view']},
+    {name:'RESET_APPROVAL',line:'Post-approval edits auto-reset all approvals — architecture, not monitoring',tag:'moat',persona:'cfo',
+     what:['System detects modification after approval and resets status — event-driven, automatic','Material vs non-material distinction configurable per rule','Rep must resubmit; approvers re-evaluate the deal as it currently stands'],
+     prob:['Rep obtains approval at $200k, modifies to $160k post-approval, deal closes wrong','Approval shopping: approval on one version, materially different version executed','Finance identifies discrepancy at quarterly close — after contract signed and work begun'],
+     feel:['CFO: approved deal is provably the closed deal — version integrity by architecture','RevOps: approval integrity requires no monitoring — resets automatically on material change','Legal: disputes about what was approved resolved by record, not recollection']},
+    {name:'Conditional terms injection',line:'Rules auto-insert required clauses; canonical revert always available',tag:'moat',persona:'both',
+     what:['Rules evaluate deal attributes and inject mandatory clauses on REVIEW automatically','editableOnQuote flag per term controls whether rep can modify the injected language','Revert endpoint restores canonical version — recoverable baseline always exists'],
+     prob:['Enterprise deals exit quoting without legally required terms — no system enforces presence','Non-standard deals receive standard boilerplate — legal exposure discovered in dispute','Mandated clauses added to policy not retroactively enforced on in-flight deals'],
+     feel:['Legal: required clauses appear on every applicable deal automatically','CFO: contractual compliance exposure eliminated at the quoting layer','RevOps: legal review bottleneck shrinks — terms pre-injected, not manually verified']},
+    {name:'Approval audit trail',line:'Immutable records: ruleId, approverId, timestamp, structured cancellation codes',tag:'core',persona:'cfo',
+     what:['Every QuoteApproval: ruleId, approverId, userId, declinerId, status, timestamp — append-only','Cancellation codes: EXPIRED / CUSTOMER_DECLINED / DUPLICATE / BY_USER / SUPERSEDED — structured','Append-only storage — no soft-delete, no modification path'],
+     prob:['SOX audit: demonstrating approval controls applied — reconstructed from emails over 2–3 weeks','Who approved this deal, on which version, under which rule — multi-system, multi-hour investigation','Revenue recognition requires exact contract state on a given date — not available as structured records'],
+     feel:['CFO: SOX preparation is report generation, not reconstruction','Board: governance demonstrable via structured data, not email screenshots','Finance: revenue recognition disputes have a timestamped, version-linked evidentiary record']}
+  ]},
+  {id:'contract',num:'04',title:'Contract & Renewal',color:'#9a3412',colorBg:'#fff7ed',
+   fracture:'Quote data re-entered manually into billing. Renewals tracked in spreadsheets. Amendments handled over email. Every handoff is a potential error.',
+   caps:[
+    {name:'Auto-contract creation',line:'PROCESSED state creates contract — same record, zero re-entry',tag:'core',persona:'both',
+     what:['PROCESSED transition creates contract automatically — no manual step, no data re-entry','Same offeringId flows from quote to contract to subscription to invoice — one record throughout','previousContractId and latestQuoteId — bidirectional traceability throughout'],
+     prob:['Contracts manually created post-close — data entry introduces drift immediately','Quote and contract terms diverge during re-entry — all billing disputes originate here','Finance reconciles quote vs contract vs invoice monthly — 2–4 hours per analyst, recurring'],
+     feel:['CFO: quote is contract is invoice — one record, provably, always','RevOps: post-signature billing setup automated — the 2-hour manual task eliminated','Finance: billing disputes from re-entry errors drop to zero — there is no re-entry']},
+    {name:'Renewal engine',line:'contractEndAction encoded at signing; quote generated N days before expiry',tag:'diff',persona:'revops',
+     what:['contractEndAction: RENEW / MANUAL_RENEW / CANCEL — set at deal creation, not at renewal time','autoRenewalNoticePeriod fires renewal quote at configured N days pre-expiry — no human trigger','Renewal quote carries correct type and all prior terms — no manual reconstruction required'],
+     prob:['Renewals tracked in spreadsheets — deals expire unnoticed or outreach starts too late','Rep generates renewal quote manually at 30 days if they remember — rep-dependent timing and accuracy','No systematic increase mechanism — revenue stays flat when policy intends it to compound'],
+     feel:['RevOps: renewal pipeline managed by the system — no spreadsheet, no manual quote creation','Sales leadership: every renewal gets outreach at the configured window, not when a rep remembers','CFO: renewal revenue capture complete and predictable — no silent churn from unworked expirations']},
+    {name:'Price uplift',line:'FIXED or MAX policy encoded at creation; applies automatically every renewal',tag:'diff',persona:'cfo',
+     what:['Uplift: FIXED (exact %) or MAX (ceiling, rep negotiates floor) — configured at deal creation','Scope: APPLY_TO_ALL_PRODUCTS or PRODUCT_SPECIFIC per quote offering','Uplift exceeding threshold triggers approval rule — Finance sees exceptions before close'],
+     prob:['Annual increases are informal rep negotiations — inconsistently applied, frequently omitted','0% renewal on a $300k account surfaces at board review — CFO learns retroactively','Price uplift policy exists as a slide from a prior year — no enforcement at renewal time'],
+     feel:['CFO: uplift is encoded policy — applied every renewal; deviations require formal approval','Revenue leadership: NRR compounds correctly because increases are systematic','RevOps: no manual uplift calculation — system applies it and escalates exceptions']},
+    {name:'Amendment workflow',line:'Versioned amendments with contract lineage and precise pro-ration',tag:'core',persona:'both',
+     what:['Amendment quote: AMENDMENT type, previousQuoteId, previousContractId — full lineage','contractAmendmentDate drives pro-ration — exact date, not estimated mid-period','amendmentVersion with versionString — every modification is a structured, recoverable record'],
+     prob:['Mid-contract changes via email to billing — no formal record, no contract linkage','Pro-ration estimated in spreadsheet — approximation introduces billing error','Amendment history requires reconstruction from emails — unreliable for audit purposes'],
+     feel:['CFO: every modification documented, precisely pro-rated, subject to same governance as new deals','Legal: amendment history structurally traceable via contract identifiers','RevOps: amendment billing system-handled — manual credit calculation eliminated']},
+    {name:'E-signature + doc gen',line:'System-generated PDF; signed doc stored via signedDocumentStorageId',tag:'core',persona:'revops',
+     what:['PDF generated from quote data automatically — no manual document assembly','requiresEsign flag; signer types: esign[], additionalSigners[], additionalESignRecipients[]','Signed document stored in platform permanently — not email-dependent'],
+     prob:['Signed contracts in rep email or unmanaged drives — retrieval for audit is unreliable','Multi-party signing over email — deals stall; no status visibility','Signed version and billing terms diverge — discovered only in disputes'],
+     feel:['RevOps: signed documents are platform records — retrievable by any authorised user','Legal: signed version is billing version — same record, no ambiguity','Finance: any signed contract retrievable in seconds for audit or dispute']}
+  ]},
+  {id:'billing',num:'05',title:'Billing · Usage · Payments',color:'#1e4d8c',colorBg:'#eff6ff',
+   fracture:'Billing systems built for subscriptions. Usage bolted on. Cash collection manual. Multiple models force multiple systems.',
+   caps:[
+    {name:'Usage — independent billing period',line:'usagePeriodStart/End structurally separate from subscription period',tag:'moat',persona:'cfo',
+     what:['Usage has its own billing period fields — independent from subscription period by data model design','Usage billed on any cadence regardless of subscription cadence on the same contract','Usage Service is a separate architectural layer — not a subscription field extension'],
+     prob:['Move to hybrid pricing — vendor cannot support differing periods — 9-month re-platform','Annual fee + monthly API billing on one contract impossible — requires two systems, two invoices','Hybrid pricing adoption accelerating; reaching it requires infrastructure replacement'],
+     feel:['CFO: pricing model evolution does not trigger a vendor replacement project','Product: pricing decisions driven by market fit, not billing architecture','Sales: hybrid deal structures available now, not after an engineering project']},
+    {name:'Multi-entity bill groups',line:'Multiple independent bill groups per account, each fully configurable',tag:'diff',persona:'cfo',
+     what:['Multiple bill groups per account — each with own billDay, frequency, netTerms, payment method','6 invoicing frequencies: DAILY / MONTHLY / QUARTERLY / SEMIANNUALLY / ANNUALLY / CUSTOM','NET_0 through NET_180 at bill group level — different divisions carry different payment terms'],
+     prob:['Enterprise with multiple divisions — most systems enforce one configuration per account','EUR monthly + USD quarterly — requires separate account records and manual reconciliation','RevOps manually splits invoices for each complex enterprise account — non-scalable'],
+     feel:['CFO: enterprise account complexity is a data model property — handled natively','RevOps: complex multi-division billing set at deal time — no ongoing manual intervention','Sales: enterprise deals committable without promising an engineering workaround']},
+    {name:'Automated payments',line:'Multi-gateway abstraction; payment methods on file; scheduled collection',tag:'core',persona:'cfo',
+     what:['Gateway abstraction — multiple processors per deployment, not locked to single vendor','Payment method management: create, import, default per bill group; customer authenticates once','Stripe SetupIntent for card-on-file; ACH/wire managed in platform; runs on contract schedule'],
+     prob:['Collections team manually triggers payment runs — staff availability affects cash timing','Single gateway means no fallback for failed payments or international customers','DSO is staff-dependent — Finance cannot build reliable cash flow forecasts'],
+     feel:['CFO: cash collection timing is contract-determined, not staff-determined — DSO predictable','Finance: payment arrival is scheduled, not manually triggered — forecasting becomes reliable','RevOps: payment processing runs on schedule set at deal creation — not a recurring task']},
+    {name:'Credit notes',line:'Formal credit notes against specific invoices; structured void with audit trail',tag:'core',persona:'cfo',
+     what:['Credit notes issued against specific invoices — platform records, not external adjustments','Scoped to account or bill-group level — no ambiguity about which invoices a credit applies to','Void is structured with audit trail — not deleted, only voided with reason and timestamp'],
+     prob:['Overbilling corrections via spreadsheet entries or verbal agreements — audit risk, no formal record','Credits applied at wrong scope — wrong invoice, wrong entity, wrong period','Manual credit memos outside billing create revenue recognition errors at month-end'],
+     feel:['CFO: every credit is a platform record — scoped correctly, timestamped, linked to the invoice','Finance: revenue recognition at close does not require reconciling external credit memos','Audit: credits carry same evidentiary structure as invoices']},
+    {name:'Trial management',line:'Explicit endAction and trialConversionPolicy; lifecycle events tracked',tag:'core',persona:'revops',
+     what:['Trial with endAction: CONVERT_TO_PAID or CANCEL — behaviour on expiry explicit, not defaulted','trialConversionPolicy controls whether conversion is automatic or requires manual confirmation','Trial lifecycle events are tracked records — trial pipeline is structured billing data'],
+     prob:['Trials expire without follow-up — customer churns silently; revenue opportunity lost','Trial converted at incorrect price — billing not updated before conversion triggered','Finance cannot see trial pipeline — data lives in CRM fields and spreadsheets'],
+     feel:['RevOps: trial conversions governed by policy — no deals lost to gap between trial and paid','CFO: trial-to-paid pipeline visible and forecastable from billing data','Finance: trial conversions hit billing correctly without a manual handoff step']}
+  ]},
+  {id:'infra',num:'06',title:'Automation · Integration',color:'#3d6b24',colorBg:'#f7fef0',
+   fracture:'Billing runs are manual. Revenue data siloed in billing system. Audit trails reconstructed from emails. BI tools dependent on stale exports.',
+   caps:[
+    {name:'Batch billing automation',line:'Scheduled runs without human trigger; async processor for scale',tag:'core',persona:'revops',
+     what:['Batch service executes billing runs on configured schedule — no human trigger required','Per-account manual trigger available for exceptions or out-of-cycle billing','Async event processor handles billing events at scale without blocking'],
+     prob:['Billing runs require manual login and trigger — staff absences delay cash collection','Manual execution means timing inconsistency — Finance cannot explain DSO variance','Exceptions require RevOps to diagnose, correct, and retrigger manually — recurring overhead'],
+     feel:['RevOps: billing runs are a scheduled function, not a recurring manual task','CFO: billing timing is deterministic — no staff-driven variance in when revenue hits the ledger','Finance: exceptions visible in a dashboard, not surfaced by customer complaints']},
+    {name:'Webhook event bus',line:'Every platform event streams out in real time to any destination',tag:'diff',persona:'cfo',
+     what:['Webhooks fire on every significant event: invoice, payment, subscription, approval, state transitions','Real-time emission — not batched, not scheduled, not polled','Connects to Snowflake, BigQuery, Redshift, any ERP or internal tooling — no proprietary lock'],
+     prob:['Revenue data siloed in billing — Finance exports manually to produce any report','Data warehouse perpetually 24 hours stale — board decisions made on prior-day numbers','ERP and billing chronically out of sync — monthly reconciliation is a standing 1–2 day task'],
+     feel:['CFO: revenue data in the warehouse is real-time — board reporting reflects current state','Finance: ERP sync is event-driven and automatic — monthly reconciliation task eliminated','Data team: billing events are first-class structured data — any integration buildable without ETL']},
+    {name:'OpenAPI — 396 endpoints',line:'Curated, whitelist-filtered; every revenue object covered; 651 schemas',tag:'diff',persona:'revops',
+     what:['396 endpoints: opportunities, quotes, contracts, subscriptions, invoices, payments, approvals — complete','Whitelist-filtered — surface intentional and stable, not auto-generated from ORM','OpenAPI 3.0 spec with 651 schemas — every integration can be type-safe from day one'],
+     prob:['Billing vendor API incomplete — key objects unexposed or read-only; workarounds required','API breaks silently between vendor releases — ongoing maintenance burden','Engineering cannot build reliable internal tooling on billing system — too many gaps'],
+     feel:['RevOps / Engineering: internal tooling buildable on a complete, stable surface — no gaps','CTO: API investment is protected — curated and maintained, not accidentally generated','Partners / ISVs: every revenue entity accessible and documented — integration confidence is architectural']},
+    {name:'Per-tenant reporting schema',line:'Dedicated PostgreSQL schema per customer; BI connects directly, real-time',tag:'diff',persona:'cfo',
+     what:['Each customer has a dedicated reporting schema — isolated, always current, no shared tables','Tableau, Looker, Power BI, any SQL client connects directly — no middleware, no export pipeline','Reflects current platform state in real time — not a nightly sync, not a batch export'],
+     prob:['Revenue reporting requires CSV export, CRM join, manual Excel calculation — full-day analyst task','Reporting numbers perpetually stale — Finance presents prior-week data at current-week board meeting','Billing and CRM report different ARR figures — no single source of truth'],
+     feel:['CFO: board reporting reflects current state — no rebuild, no export lag, no conflicting figures','Finance: ARR, MRR, churn, renewal coverage in one schema — one number, one source','RevOps: renewal coverage is a 30-second query, not a 3-hour data pull']},
+    {name:'Audit log + account history',line:'Append-only object history; every state transition with actor and timestamp',tag:'core',persona:'cfo',
+     what:['Full object history filterable by objectId and objectType — quotes, contracts, approvals, invoices','Every state transition: actor, timestamp, prior state, new state — immutable, append-only','Compressed, partitioned log storage — long-term retention by design; no soft-delete path'],
+     prob:['SOX audit: demonstrating approval controls applied — reconstructed from emails over 2–3 weeks','Who approved this deal, on which version, under which rule — multi-system, multi-hour investigation','Revenue recognition requires exact contract state on a given date — not available as structured records'],
+     feel:['CFO: SOX preparation is report generation, not a reconstruction project','Legal: complete deal history platform-retrievable instantly — every state, actor, change, version','Finance: revenue recognition disputes have a clean, timestamped evidentiary record']}
+  ]}
+];
+
+function tagColor(t){return t==='moat'?'var(--moat)':t==='diff'?'var(--diff)':'var(--ink4)'}
+function tagBg(t){return t==='moat'?'var(--moat-bg)':t==='diff'?'var(--diff-bg)':'var(--core-bg)'}
+
+function buildBlock(stage,container){
+  var b=document.createElement('div');
+  b.className='stage-block';
+  if(stage.isMoat)b.style.borderColor='var(--moat-border)';
+  // Label
+  var lbl=document.createElement('div');
+  lbl.className='stage-label';
+  lbl.style.borderLeft='3px solid '+stage.color;
+  lbl.innerHTML='<div class="stage-num">'+stage.num+'</div>'+
+    '<div class="stage-title" style="color:'+stage.color+'">'+stage.title+'</div>'+
+    (stage.isMoat?'<div class="moat-badge">◆ MOAT</div>':'')+
+    '<div class="stage-count">'+stage.caps.length+' capabilities</div>';
+  b.appendChild(lbl);
+  // Break
+  var brk=document.createElement('div');
+  brk.className='stage-break';
+  brk.innerHTML='<div class="break-eyebrow">The break</div><div class="break-text">'+stage.fracture+'</div>';
+  b.appendChild(brk);
+  // Caps
+  var ca=document.createElement('div');
+  ca.className='stage-caps';
+  var grid=document.createElement('div');
+  grid.className='caps-grid';
+  stage.caps.forEach(function(cap,ci){
+    var pid=stage.id+'-'+ci;
+    var pill=document.createElement('div');
+    pill.className='cap-pill';
+    pill.id='pill-'+pid;
+    pill.dataset.persona=cap.persona;
+    var icon=cap.tag==='moat'?'◆':cap.tag==='diff'?'▲':'●';
+    pill.innerHTML=
+      '<div class="pill-icon" style="background:'+tagBg(cap.tag)+';color:'+tagColor(cap.tag)+'">'+icon+'</div>'+
+      '<div class="pill-text"><div class="pill-name">'+cap.name+'</div><div class="pill-line">'+cap.line+'</div></div>'+
+      '<div class="pill-dot" style="background:'+tagColor(cap.tag)+'"></div>';
+    pill.onclick=function(){openDP(cap,pid,stage.color)};
+    grid.appendChild(pill);
+  });
+  ca.appendChild(grid);
+  b.appendChild(ca);
+  container.appendChild(b);
+}
+
+function buildMap(containerId,stages){
+  var el=document.getElementById(containerId);
+  if(!el||el.children.length>0)return;
+  stages.forEach(function(s){buildBlock(s,el)});
+}
+
+function buildOV(){
+  var el=document.getElementById('ov-stages');
+  D.forEach(function(s){
+    var row=document.createElement('div');
+    row.className='ov-row'+(s.isMoat?' moat':'');
+    row.innerHTML='<div class="ov-num">'+s.num+'</div>'+
+      '<div class="ov-name">'+s.title+'</div>'+
+      '<div class="ov-break">'+s.fracture+'</div>'+
+      '<div class="ov-pills">'+s.caps.slice(0,3).map(function(c){return'<span class="ov-pill">'+c.name+'</span>'}).join('')+(s.caps.length>3?'<span class="ov-pill">+'+( s.caps.length-3)+'</span>':'')+'</div>';
+    row.onclick=function(){go(s.id,null)};
+    el.appendChild(row);
+  });
+}
+
+function openDP(cap,pid,color){
+  document.querySelectorAll('.cap-pill').forEach(function(p){p.classList.remove('selected')});
+  var pill=document.getElementById('pill-'+pid);
+  if(pill)pill.classList.add('selected');
+  document.getElementById('dp-title').textContent=cap.name;
+  document.getElementById('dp-title').style.color=color||'var(--ink)';
+  var pLabel=cap.persona==='revops'?'VP RevOps':cap.persona==='cfo'?'CFO · Finance':'Both personas';
+  var pCls=cap.persona==='revops'?'chip-revops':cap.persona==='cfo'?'chip-cfo':'chip-both';
+  var tLabel=cap.tag==='moat'?'Architectural moat':cap.tag==='diff'?'Differentiator':'Core';
+  var tStyle=cap.tag==='moat'?'background:var(--moat-bg);color:var(--moat);border:1px solid var(--moat-border)':cap.tag==='diff'?'background:var(--diff-bg);color:var(--diff);border:1px solid var(--diff-border)':'background:var(--surface2);color:var(--ink2);border:1px solid var(--border2)';
+  document.getElementById('dp-chips').innerHTML='<span class="dp-chip '+pCls+'">'+pLabel+'</span><span class="dp-chip" style="'+tStyle+'">'+tLabel+'</span>';
+  var mk=function(items,color,lbl){
+    return'<div class="dp-section"><div class="dp-sec-lbl" style="color:'+color+'"><span class="dot" style="background:'+color+'"></span>'+lbl+'</div><div class="dp-items">'+items.map(function(t){return'<div class="dp-item"><span class="dp-dash">—</span><span class="dp-text">'+t+'</span></div>'}).join('')+'</div></div>';
+  };
+  document.getElementById('dp-body').innerHTML=mk(cap.what,'var(--blue)','Behaviour')+mk(cap.prob,'var(--red)','Failure addressed')+mk(cap.feel,'var(--diff)','Who carries this today');
+  document.getElementById('dp').classList.add('open');
+  document.getElementById('sb-sel').textContent=cap.name;
+}
+
+function closeDP(){
+  document.getElementById('dp').classList.remove('open');
+  document.querySelectorAll('.cap-pill').forEach(function(p){p.classList.remove('selected')});
+  document.getElementById('sb-sel').textContent='Select a capability for detail';
+}
+
+function toggleSB(){
+  sbOpen=!sbOpen;
+  document.getElementById('sidebar').classList.toggle('closed',!sbOpen);
+}
+
+var MAPS={'journey':'all','orig':'orig','cpq':'cpq','policy':'policy','contract':'contract','billing':'billing','infra':'infra'};
+
+function go(id,el){
+  document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('on')});
+  document.querySelectorAll('.sb-item').forEach(function(i){i.classList.remove('on')});
+  var sec=document.getElementById('sec-'+id);
+  if(sec)sec.classList.add('on');
+  if(el)el.classList.add('on');
+  else{document.querySelectorAll('.sb-item').forEach(function(i){if(i.getAttribute('onclick')&&i.getAttribute('onclick').indexOf("'"+id+"'")>-1)i.classList.add('on')})}
+  if(id==='journey')buildMap('map-all',D);
+  else if(MAPS[id]&&id!=='overview'){var s=D.find(function(x){return x.id===id});if(s)buildMap('map-'+id,[s]);}
+  applyPersonaFilter();
+}
+
+function setP(p,btn){
+  activeP=p;
+  if(btn){document.querySelectorAll('.ptab').forEach(function(t){t.classList.remove('on')});btn.classList.add('on');}
+  else{document.querySelectorAll('.ptab').forEach(function(t){t.classList.toggle('on',t.textContent.toLowerCase().replace(' ','')===p||(p==='all'&&t.textContent==='All'))})}
+  document.getElementById('sb-p').innerHTML='Viewing: <span>'+(p==='all'?'All capabilities':p==='revops'?'VP RevOps view':'CFO view')+'</span>';
+  applyPersonaFilter();
+}
+
+function applyPersonaFilter(){
+  document.querySelectorAll('.cap-pill').forEach(function(pill){
+    var pp=pill.dataset.persona;
+    pill.classList.toggle('dimmed',activeP!=='all'&&pp!==activeP&&pp!=='both');
+  });
+}
+
+buildOV();
+</script>
+</body>
+</html>
